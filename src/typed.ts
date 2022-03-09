@@ -67,7 +67,8 @@ export class Typed {
     if (className !== this._currentClassName) {
       this._currentClassName = className;
       if (className) {
-        this.options.callback(`${this.text}<span class="${className}"></span>`);
+        this.text = `${this.text}<span class="${className}"></span>`;
+        this.options.callback(this.text);
       }
     }
     this._letters = sentance.split('');
