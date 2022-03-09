@@ -1,9 +1,9 @@
-import { randomInt } from 'crypto';
 import { keyboards } from './data/keyboards';
 import { ensureLocale } from './ensure-locale';
 import { CharWithPos } from './types/char-with-pow';
 import { ErrorDelta } from './types/error-delta';
 import { Keyboards } from './types/keyboard';
+import { randomInt } from './utils/random-int';
 
 export const getRandomCharNear = (
   char: string,
