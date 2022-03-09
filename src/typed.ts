@@ -2,6 +2,7 @@ import { keyboards } from './data/keyboards';
 import { ensureLocale } from './ensure-locale';
 import { getRandomCharNear } from './random-char';
 import { ErrorDelta } from './types/error-delta';
+import { Keyboard } from './types/keyboard';
 import {
   ConstructorTypingOptions,
   EraseTypingOptions,
@@ -74,6 +75,10 @@ export class Typed {
     await wait(randomInt(this.options.minDelay, this.options.maxDelay));
     await this.nextLetter();
     this._isRunning = false;
+  }
+
+  public addKeyboard(locale: string, keyboard: Keyboard) {
+    keyboards[locale] = keyboard;
   }
 
   public reset() {

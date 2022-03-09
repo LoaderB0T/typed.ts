@@ -1,6 +1,8 @@
 export type Keyboards = {
-  [locale: string]: {
-    lower: string[];
-    upper: string[];
-  };
+  [locale: string]: Keyboard;
+};
+
+export type Keyboard = {
+  lower: string[];
+  upper: string[];
 };
