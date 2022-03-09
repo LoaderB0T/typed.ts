@@ -1,6 +1,6 @@
 {
   "name": "typed.ts",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Realistic typing simulations in TypeScript",
   "main": "lib/index.js",
   "files": [
