@@ -16,6 +16,8 @@ This small package provides simple typing simulations for TypeScript or JavaScri
 
 ✅ Configurable typing speed, delay, erase speed, error rate, and more
 
+✅ Custom class names for sections of the string
+
 ✅ Add new keyboard layouts and custom characters
 
 ✅ No DOM manipulation -> use with any framework
