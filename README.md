@@ -8,6 +8,11 @@ Realistic typing simulations in TypeScript!
 
 This small package provides simple typing simulations for TypeScript or JavaScript. It does not aim to modify the DOM directly, but rather only calculates the strings and provides a callback for you to render.
 
+## Example 🧮
+<p align="center">
+  <img src="readme/example.gif" height="350">
+</p>
+
 ## Features 🔥
 
 ✅ Simulates typing for any strings
