@@ -25,6 +25,7 @@ export class Typed {
 
   private text = '';
   private _fastForward = false;
+  private _currentRandomId: number = -1;
 
   constructor(options: ConstructorTypingOptions) {
     this._options = options;
@@ -59,6 +60,8 @@ export class Typed {
   }
 
   public async start(sentance: string, options: StartTypingOptions = {}, className?: string): Promise<void> {
+    const randomId = Math.random();
+    this._currentRandomId = randomId;
     if (this._isRunning) {
       throw new Error('Typing is already running');
     }
@@ -73,8 +76,17 @@ export class Typed {
     }
     this._letters = sentance.split('');
     await wait(this.options.initialDelay);
+    if (randomId !== this._currentRandomId) {
+      return;
+    }
     await wait(randomInt(this.options.minDelay, this.options.maxDelay));
-    await this.nextLetter();
+    if (randomId !== this._currentRandomId) {
+      return;
+    }
+    await this.nextLetter(randomId);
+    if (randomId !== this._currentRandomId) {
+      return;
+    }
     this._isRunning = false;
   }
 
@@ -82,10 +94,15 @@ export class Typed {
     keyboards[locale] = keyboard;
   }
 
+  public get isRunning(): boolean {
+    return this._isRunning;
+  }
+
   public reset() {
     if (this._isRunning) {
       throw new Error('Typing is still running');
     }
+    this._currentRandomId = -1;
     this.fastForward(false);
     this.text = '';
     this.options.callback('');
@@ -95,7 +112,7 @@ export class Typed {
     return !(letter === ' ' || letter === '\n');
   }
 
-  private async nextLetter(): Promise<void> {
+  private async nextLetter(randomId: number): Promise<void> {
     let letter = '';
 
     let probabilityForError = this.options.errorRate;
@@ -129,7 +146,10 @@ export class Typed {
       this._lettersSinceError++;
       await wait(randomInt(this.options.minDelay, this.options.maxDelay));
     }
-    return this.nextLetter();
+    if (randomId !== this._currentRandomId) {
+      return;
+    }
+    return this.nextLetter(randomId);
   }
 
   private addLetter(letter: string): void {
