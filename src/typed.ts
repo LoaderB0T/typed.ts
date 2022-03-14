@@ -99,10 +99,8 @@ export class Typed {
   }
 
   public reset() {
-    if (this._isRunning) {
-      throw new Error('Typing is still running');
-    }
     this._currentRandomId = -1;
+    this._isRunning = false;
     this.fastForward(false);
     this.text = '';
     this.options.callback('');
