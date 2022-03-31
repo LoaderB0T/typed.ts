@@ -1,4 +1,6 @@
 [![npm](https://img.shields.io/npm/v/typed.ts?color=%2300d26a&style=for-the-badge)](https://www.npmjs.com/package/typed.ts)
+[![LGTM Grade](https://img.shields.io/lgtm/grade/javascript/github/LoaderB0T/typed.ts?label=Code%20Quality&style=for-the-badge)](https://lgtm.com/projects/g/LoaderB0T/typed.ts/?mode=list)
+[![LGTM Alerts](https://img.shields.io/lgtm/alerts/github/LoaderB0T/typed.ts?style=for-the-badge)](https://lgtm.com/projects/g/LoaderB0T/typed.ts/?mode=list)
 
 # typed.ts
 
