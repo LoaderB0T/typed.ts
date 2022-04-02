@@ -1,4 +1,5 @@
 [![npm](https://img.shields.io/npm/v/typed.ts?color=%2300d26a&style=for-the-badge)](https://www.npmjs.com/package/typed.ts)
+[![Sonar Quality Gate](https://img.shields.io/sonar/quality_gate/LoaderB0T_typed.ts?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge)](https://sonarcloud.io/summary/new_code?id=LoaderB0T_typed.ts)
 
 # typed.ts
 
