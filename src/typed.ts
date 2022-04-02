@@ -50,7 +50,9 @@ export class Typed {
         maxEraseDelay: 250,
         initialDelay: 0,
         errorRate: 0.1,
-        callback: () => {},
+        callback: () => {
+          // noop
+        },
         locale: 'en'
       },
       ...this._options,
