@@ -1,213 +1,255 @@
 import { keyboards } from './data/keyboards';
-import { ensureLocale } from './ensure-locale';
-import { getRandomCharNear } from './random-char';
-import { ErrorDelta } from './types/error-delta';
+import { RandomChars } from './utils/random-char';
+import { Resetter } from './utils/resetter';
 import { Keyboard } from './types/keyboard';
 import {
   ConstructorTypingOptions,
   EraseTypingOptions,
   FullTypingOptions,
   PartialTypingOptions,
-  StartTypingOptions
+  SentanceTypingOptions
 } from './types/options';
-import { randomInt } from './utils/random-int';
+import { Backspace, QueueItem, Sentance, Wait } from './types/queue-item';
+import { ResultItem } from './types/result-item';
+import { isSpecialChar } from './utils/is-special-char';
 import { wait } from './utils/wait';
 
 export class Typed {
+  private readonly _resetter = new Resetter();
+  private readonly _randomChars = new RandomChars();
   private readonly _options: ConstructorTypingOptions;
-  private _overrideOptions?: PartialTypingOptions;
-  private _isRunning = false;
-  private _letters: string[] = [];
-  private _errorCount = 0;
-  private _lettersSinceError = 0;
-  private _lastErrorDelta: ErrorDelta = { row: 0, column: 0 };
-  private _currentClassName: string | undefined = undefined;
-
-  private text = '';
-  private _fastForward = false;
-  private _currentRandomId: number = -1;
+  private readonly _queue: QueueItem[] = [];
+  private _currentQueueIndex: number = 0;
+  private _currentQueueDetailIndex: number = 0;
+  private _resultItems: ResultItem[] = [];
+  private _fastForward: boolean = false;
 
   constructor(options: ConstructorTypingOptions) {
     this._options = options;
   }
 
   private get options(): FullTypingOptions {
-    const ff = this._fastForward
+    const defaultOptions: FullTypingOptions = {
+      callback: () => {
+        // do nothing
+      },
+      initialDelay: 0,
+      eraseDelay: { min: 150, max: 250 },
+      errorRate: 0.2,
+      noSpecialCharErrors: false,
+      locale: 'en',
+      perLetterDelay: { min: 40, max: 150 }
+    };
+
+    const ffOptions: PartialTypingOptions = this._fastForward
       ? {
-          minDelay: 10,
-          maxDelay: 20,
-          minEraseDelay: 10,
-          maxEraseDelay: 20,
-          errorRate: 0
+          perLetterDelay: { min: 10, max: 20 },
+          eraseDelay: { min: 10, max: 20 },
+          initialDelay: 0
         }
       : {};
 
-    return {
-      ...{
-        minDelay: 40,
-        maxDelay: 150,
-        minEraseDelay: 150,
-        maxEraseDelay: 250,
-        initialDelay: 0,
-        errorRate: 0.1,
-        callback: () => {
-          // noop
-        },
-        locale: 'en'
-      },
-      ...this._options,
-      ...(this._overrideOptions ?? {}),
-      ...ff
-    };
-  }
+    const currentQueueItemOptions = this._queue[this._currentQueueIndex]?.options ?? {};
 
-  public async start(sentance: string, options: StartTypingOptions = {}, className?: string): Promise<void> {
-    const randomId = Math.random();
-    this._currentRandomId = randomId;
-    if (this._isRunning) {
-      throw new Error('Typing is already running');
-    }
-    this._isRunning = true;
-    this._overrideOptions = options;
-    if (className !== this._currentClassName) {
-      this._currentClassName = className;
-      if (className) {
-        this.text = `${this.text}<span class="${className}"></span>`;
-        this.options.callback(this.text);
-      }
-    }
-    this._letters = sentance.split('');
-    await wait(this.options.initialDelay);
-    if (randomId !== this._currentRandomId) {
-      return;
-    }
-    await wait(randomInt(this.options.minDelay, this.options.maxDelay));
-    if (randomId !== this._currentRandomId) {
-      return;
-    }
-    await this.nextLetter(randomId);
-    if (randomId !== this._currentRandomId) {
-      return;
-    }
-    this._isRunning = false;
+    return {
+      ...defaultOptions,
+      ...this._options,
+      ...currentQueueItemOptions,
+      ...ffOptions
+    };
   }
 
   public addKeyboard(locale: string, keyboard: Keyboard) {
     keyboards[locale] = keyboard;
   }
 
-  public get isRunning(): boolean {
-    return this._isRunning;
-  }
-
-  public reset() {
-    this._currentRandomId = -1;
-    this._isRunning = false;
-    this.fastForward(false);
-    this.text = '';
-    this.options.callback('');
-  }
-
-  private letterCanError(letter: string): boolean {
-    return !(letter === ' ' || letter === '\n');
-  }
-
-  private async nextLetter(randomId: number): Promise<void> {
-    let letter = '';
-
-    let probabilityForError = this.options.errorRate;
-    if (probabilityForError > 0) {
-      probabilityForError += (this._lettersSinceError - 10) * 0.01;
-      if (this._errorCount === 1 && this._lettersSinceError === 0) {
-        probabilityForError += 0.3;
+  public async reset(clearTexts: boolean = false): Promise<void> {
+    this._resultItems = [];
+    this._fastForward = false;
+    this.updateText();
+    if (clearTexts) {
+      while (this._queue.pop()) {
+        // do nothing
       }
     }
-
-    const isError = Math.random() < probabilityForError && this.letterCanError(this._letters[0]);
-    if (isError) {
-      letter = this.randomCharNear(this._letters[this._errorCount], this.options.locale);
-      this._lettersSinceError = -1;
-      this._errorCount++;
-    } else {
-      if (this._errorCount === 0) {
-        letter = this._letters.shift() ?? '';
-        if (!letter) {
-          return;
-        }
-      }
-    }
-    if (!isError && this._errorCount > 0) {
-      this.doSingleBackspace();
-      this._errorCount--;
-      this._lettersSinceError = 1;
-      await wait(randomInt(this.options.minEraseDelay, this.options.maxEraseDelay));
-    } else {
-      this.addLetter(letter);
-      this._lettersSinceError++;
-      await wait(randomInt(this.options.minDelay, this.options.maxDelay));
-    }
-    if (randomId !== this._currentRandomId) {
-      return;
-    }
-    return this.nextLetter(randomId);
+    await this._resetter.reset();
   }
 
-  private addLetter(letter: string): void {
-    const oldValue = this.text;
-    if (this._currentClassName) {
-      const insertIndex = oldValue.lastIndexOf('</span>');
-      const oldValuePrefix = oldValue.substring(0, insertIndex);
-      const oldValueSuffix = oldValue.substring(insertIndex);
-      this.text = oldValuePrefix + letter + oldValueSuffix;
-    } else {
-      this.text = oldValue + letter;
-    }
-    this.options.callback(this.text);
+  public type(sentance: string, options?: SentanceTypingOptions): Typed {
+    this._queue.push({
+      type: 'sentance',
+      text: sentance,
+      options,
+      className: options?.className
+    });
+    return this;
   }
 
-  private doSingleBackspace(): void {
-    const oldValue = this.text;
-    if (this._currentClassName) {
-      const insertIndex = oldValue.lastIndexOf('</span>');
-      const oldValuePrefix = oldValue.substring(0, insertIndex);
-      const oldValueSuffix = oldValue.substring(insertIndex);
-      this.text = oldValuePrefix.substring(0, oldValuePrefix.length - 1) + oldValueSuffix;
-    } else {
-      this.text = oldValue.substring(0, oldValue.length - 1);
-    }
-    this.options.callback(this.text);
+  public backspace(length: number, options?: EraseTypingOptions): Typed {
+    this._queue.push({
+      type: 'backspace',
+      length,
+      options
+    });
+    return this;
   }
 
-  public async backspace(count: number, options: EraseTypingOptions = {}): Promise<void> {
-    if (this._isRunning) {
-      throw new Error('Typing is already running');
+  public wait(delay: number): Typed {
+    this._queue.push({
+      type: 'wait',
+      delay
+    });
+    return this;
+  }
+
+  public async run(): Promise<void> {
+    this._currentQueueIndex = 0;
+    this._currentQueueDetailIndex = 0;
+    this._resultItems = [];
+    while (await this.doQueueAction()) {
+      // do nothing
     }
-    this._isRunning = true;
-    this._overrideOptions = options;
-    const oldValue = this.text;
-    if (oldValue.length < count) {
-      throw new Error('Cannot backspace more than the current text length');
-    }
-    for (let i = 0; i < count; i++) {
-      await wait(randomInt(this.options.minEraseDelay, this.options.maxEraseDelay));
-      this.doSingleBackspace();
-    }
-    this._isRunning = false;
   }
 
   public fastForward(enabled = true) {
+    // @todo switch to "pre-rendered" final version so that not all intermediate steps have to be rendered
+    //   ->  type("hello world").backspace(5).type("you!") -> Results in "hello you!", if we want to FF,
+    //       we shouldn't have to render "world" at all.
     this._fastForward = enabled;
+    this._resetter.singleReset();
   }
 
-  private randomCharNear(ch: string, locale: string): string {
-    ensureLocale(locale);
-
-    const randomChar = getRandomCharNear(ch, keyboards, locale, this._errorCount, this._lastErrorDelta);
-    if (typeof randomChar === 'string') {
-      return randomChar;
+  private async doQueueAction(): Promise<boolean> {
+    const currentQueueItem = this._queue[this._currentQueueIndex];
+    switch (currentQueueItem.type) {
+      case 'sentance':
+        return this.typeLetter();
+      case 'backspace':
+        return this.typeBackspace();
+      case 'wait':
+        return this.waitItem();
+      default:
+        throw new Error('Unknown queue item type');
     }
+  }
 
-    this._lastErrorDelta = { row: randomChar.row, column: randomChar.column };
-    return randomChar.char;
+  private async typeLetter(): Promise<boolean> {
+    const currentSentance = this._queue[this._currentQueueIndex] as Sentance;
+    const currentLetter = currentSentance.text[this._currentQueueDetailIndex];
+    await wait(this.options.initialDelay, this._resetter);
+    await this.maybeDoError(currentSentance, 0);
+    this.addLetter(currentLetter, currentSentance.className);
+    this.updateText();
+    await wait(this.options.perLetterDelay, this._resetter);
+    return this.endQueueItemStep(currentSentance.text.length);
+  }
+
+  private async typeBackspace(): Promise<boolean> {
+    const currentBackspaceItem = this._queue[this._currentQueueIndex] as Backspace;
+    this.deleteLetter();
+    this.updateText();
+    await wait(this.options.eraseDelay, this._resetter);
+    return this.endQueueItemStep(currentBackspaceItem.length);
+  }
+
+  private async waitItem(): Promise<boolean> {
+    if (!this._fastForward) {
+      const currentWaitItem = this._queue[this._currentQueueIndex] as Wait;
+      await wait(currentWaitItem.delay, this._resetter);
+    }
+    return this.endQueueItemStep();
+  }
+
+  private endQueueItemStep(maxDetailIndex?: number): boolean {
+    if (this._resetter.isReset) {
+      return false;
+    }
+    this._currentQueueDetailIndex++;
+    if (!maxDetailIndex || this._currentQueueDetailIndex === maxDetailIndex) {
+      return this.nextQueueItem();
+    } else {
+      return true;
+    }
+  }
+
+  private async maybeDoError(currentSentance: Sentance, indexDelta: number): Promise<void> {
+    // @todo improve error rate (dynamic error rate based last error(s))
+    if (Math.random() > this.options.errorRate) {
+      return;
+    }
+    const intendedChar = currentSentance.text[this._currentQueueDetailIndex + indexDelta];
+    if (!intendedChar) {
+      return;
+    }
+    if (this.options.noSpecialCharErrors && isSpecialChar(intendedChar)) {
+      return;
+    }
+    const nearbyChar = this._randomChars.getRandomCharCloseToChar(intendedChar, this.options.locale);
+    if (!nearbyChar) {
+      return;
+    }
+    this.addLetter(nearbyChar, currentSentance.className);
+    this.updateText();
+    await wait(this.options.perLetterDelay, this._resetter);
+    await this.maybeDoError(currentSentance, indexDelta + 1);
+    this.deleteLetter();
+    this.updateText();
+    await wait(this.options.eraseDelay, this._resetter);
+  }
+
+  private nextQueueItem(): boolean {
+    if (this._resetter.isReset) {
+      return false;
+    }
+    this._currentQueueIndex++;
+    if (this._currentQueueIndex === this._queue.length) {
+      return false;
+    }
+    this._currentQueueDetailIndex = 0;
+    return true;
+  }
+
+  private addLetter(letter: string, className?: string) {
+    const lastResultItem = this._resultItems[this._resultItems.length - 1];
+    if (lastResultItem && lastResultItem.className === className) {
+      lastResultItem.text += letter;
+    } else {
+      this._resultItems.push({
+        text: letter,
+        className
+      });
+    }
+  }
+
+  private deleteLetter() {
+    const lastResultItem = this._resultItems[this._resultItems.length - 1];
+    if (lastResultItem) {
+      lastResultItem.text = lastResultItem.text.slice(0, -1);
+      if (!lastResultItem.text) {
+        this._resultItems.pop();
+      }
+    } else {
+      if (this._resetter.isReset) {
+        // might happen due to still running code during reset
+        return;
+      }
+      throw new Error('Cannot delete letter from empty text');
+    }
+  }
+
+  private updateText() {
+    if (this._resetter.isReset) {
+      return;
+    }
+    const text = this._resultItems
+      .map(item => {
+        if (item.className) {
+          return `<span class="${item.className}">${item.text}</span>`;
+        } else {
+          return item.text;
+        }
+      })
+      .join('');
+    this.options.callback(text);
   }
 }

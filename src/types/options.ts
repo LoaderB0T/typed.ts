@@ -1,22 +1,28 @@
-export type TypingOptions = {
-  minDelay: number;
-  maxDelay: number;
-  errorRate: number;
-  locale: string;
-};
+import { MinMax } from './min-max';
 
 export type RequiredTypingOptions = {
   callback: (text: string) => void;
 };
 
+export type TypingOptions = {
+  initialDelay: number | MinMax;
+  perLetterDelay: number | MinMax;
+  errorRate: number;
+  noSpecialCharErrors: boolean;
+  locale: string;
+};
+
 export type EraseOptions = {
-  minEraseDelay: number;
-  maxEraseDelay: number;
-  initialDelay: number;
+  initialDelay: number | MinMax;
+  eraseDelay: number | MinMax;
+};
+
+export type ClassNameOptions = {
+  className: string;
 };
 
 export type FullTypingOptions = TypingOptions & RequiredTypingOptions & EraseOptions;
 export type PartialTypingOptions = Partial<FullTypingOptions>;
 export type ConstructorTypingOptions = Partial<TypingOptions> & RequiredTypingOptions & Partial<EraseOptions>;
-export type StartTypingOptions = Partial<TypingOptions> & Partial<EraseOptions>;
+export type SentanceTypingOptions = Partial<TypingOptions> & Partial<EraseOptions> & Partial<ClassNameOptions>;
 export type EraseTypingOptions = Partial<EraseOptions>;
