@@ -1,7 +1,7 @@
-import { keyboards } from './data/keyboards';
-import { ensureLocale } from './utils/ensure-locale';
-import { isSpecialChar } from './utils/is-special-char';
-import { randomInt } from './utils/random-int';
+import { keyboards } from '../data/keyboards';
+import { ensureLocale } from './ensure-locale';
+import { isSpecialChar } from './is-special-char';
+import { randomInt } from './random-int';
 
 export class RandomChars {
   public getRandomCharCloseToChar(intendedChar: string, locale: string): string | undefined {

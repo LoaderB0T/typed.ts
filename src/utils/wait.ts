@@ -1,4 +1,4 @@
-import { Resetter } from '../resetter';
+import { Resetter } from './resetter';
 import { MinMax } from '../types/min-max';
 import { randomInt } from './random-int';
 

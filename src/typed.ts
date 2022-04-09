@@ -1,6 +1,6 @@
 import { keyboards } from './data/keyboards';
-import { RandomChars } from './random-char';
-import { Resetter } from './resetter';
+import { RandomChars } from './utils/random-char';
+import { Resetter } from './utils/resetter';
 import { Keyboard } from './types/keyboard';
 import {
   ConstructorTypingOptions,
@@ -112,6 +112,9 @@ export class Typed {
   }
 
   public fastForward(enabled = true) {
+    // @todo switch to "pre-rendered" final version so that not all intermediate steps have to be rendered
+    //   ->  type("hello world").backspace(5).type("you!") -> Results in "hello you!", if we want to FF,
+    //       we shouldn't have to render "world" at all.
     this._fastForward = enabled;
     this._resetter.singleReset();
   }
@@ -143,7 +146,6 @@ export class Typed {
 
   private async typeBackspace(): Promise<boolean> {
     const currentBackspaceItem = this._queue[this._currentQueueIndex] as Backspace;
-    // await wait(this.options.initialDelay);
     this.deleteLetter();
     this.updateText();
     await wait(this.options.eraseDelay, this._resetter);
@@ -171,6 +173,7 @@ export class Typed {
   }
 
   private async maybeDoError(currentSentance: Sentance, indexDelta: number): Promise<void> {
+    // @todo improve error rate
     if (Math.random() > this.options.errorRate) {
       return;
     }
