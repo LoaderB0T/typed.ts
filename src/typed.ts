@@ -4,13 +4,14 @@ import { Keyboard } from './types/keyboard';
 import { ConstructorTypingOptions, EraseTypingOptions, FullTypingOptions, SentanceTypingOptions } from './types/options';
 import { Backspace, QueueItem, Sentance } from './types/queue-item';
 import { Resetter } from './types/resetter';
+import { ResultItem } from './types/result-item';
 import { wait } from './utils/wait';
 
 export class Typed {
   private readonly _queue: QueueItem[] = [];
   private _currentQueueIndex: number = 0;
   private _currentQueueDetailIndex: number = 0;
-  private _currentText: string = '';
+  private _resultItems: ResultItem[] = [];
   private readonly _options: ConstructorTypingOptions;
   private readonly _randomChars = new RandomChars();
   private _reset: boolean = false;
@@ -51,7 +52,7 @@ export class Typed {
   }
 
   public async reset() {
-    this._currentText = '';
+    this._resultItems = [];
     this.updateText();
     while (this._queue.pop()) {
       // do nothing
@@ -89,7 +90,7 @@ export class Typed {
   public async run(): Promise<void> {
     this._currentQueueIndex = 0;
     this._currentQueueDetailIndex = 0;
-    this._currentText = '';
+    this._resultItems = [];
     while (await this.doQueueAction()) {
       // do nothing
     }
@@ -112,7 +113,7 @@ export class Typed {
     const currentLetter = currentSentance.text[this._currentQueueDetailIndex];
     await wait(this.options.initialDelay, this._resetter);
     await this.maybeDoError(currentSentance, 0);
-    this._currentText += currentLetter;
+    this.addLetter(currentLetter);
     this.updateText();
     await wait(this.options.perLetterDelay, this._resetter);
     return this.endQueueItemStep(currentSentance.text.length);
@@ -121,7 +122,7 @@ export class Typed {
   private async typeBackspace(): Promise<boolean> {
     const currentBackspaceItem = this._queue[this._currentQueueIndex] as Backspace;
     // await wait(this.options.initialDelay);
-    this._currentText = this._currentText.slice(0, -1);
+    this.deleteLetter();
     this.updateText();
     await wait(this.options.eraseDelay, this._resetter);
     return this.endQueueItemStep(currentBackspaceItem.length);
@@ -151,11 +152,11 @@ export class Typed {
     if (!nearbyChar) {
       return;
     }
-    this._currentText += nearbyChar;
+    this.addLetter(nearbyChar);
     this.updateText();
     await wait(this.options.perLetterDelay, this._resetter);
     await this.maybeDoError(currentSentance, indexDelta + 1);
-    this._currentText = this._currentText.slice(0, -1);
+    this.deleteLetter();
     this.updateText();
     await wait(this.options.eraseDelay, this._resetter);
   }
@@ -172,10 +173,35 @@ export class Typed {
     return true;
   }
 
+  private addLetter(letter: string, className?: string) {
+    const lastResultItem = this._resultItems[this._resultItems.length - 1];
+    if (lastResultItem && lastResultItem.className === className) {
+      lastResultItem.text += letter;
+    } else {
+      this._resultItems.push({
+        text: letter,
+        className
+      });
+    }
+  }
+
+  private deleteLetter() {
+    const lastResultItem = this._resultItems[this._resultItems.length - 1];
+    if (lastResultItem) {
+      lastResultItem.text = lastResultItem.text.slice(0, -1);
+      if (!lastResultItem.text) {
+        this._resultItems.pop();
+      }
+    } else {
+      throw new Error('Cannot delete letter from empty text');
+    }
+  }
+
   private updateText() {
     if (this._reset) {
       return;
     }
-    this.options.callback(this._currentText);
+    const text = this._resultItems.map(item => item.text).join('');
+    this.options.callback(text);
   }
 }
