@@ -26,7 +26,7 @@ This small package provides simple typing simulations for TypeScript or JavaScri
 
 ✅ Add new keyboard layouts and custom characters
 
-✅ No DOM manipulation -> use with any framework
+✅ No DOM manipulation -> use with any framework (in fact, you don't even need a DOM)
 
 ✅ Promise based for easy async usage
 
