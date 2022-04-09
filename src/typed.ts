@@ -73,7 +73,8 @@ export class Typed {
     this._queue.push({
       type: 'sentance',
       text: sentance,
-      options
+      options,
+      className: options?.className
     });
     return this;
   }
@@ -113,7 +114,7 @@ export class Typed {
     const currentLetter = currentSentance.text[this._currentQueueDetailIndex];
     await wait(this.options.initialDelay, this._resetter);
     await this.maybeDoError(currentSentance, 0);
-    this.addLetter(currentLetter);
+    this.addLetter(currentLetter, currentSentance.className);
     this.updateText();
     await wait(this.options.perLetterDelay, this._resetter);
     return this.endQueueItemStep(currentSentance.text.length);
@@ -152,7 +153,7 @@ export class Typed {
     if (!nearbyChar) {
       return;
     }
-    this.addLetter(nearbyChar);
+    this.addLetter(nearbyChar, currentSentance.className);
     this.updateText();
     await wait(this.options.perLetterDelay, this._resetter);
     await this.maybeDoError(currentSentance, indexDelta + 1);
@@ -193,6 +194,10 @@ export class Typed {
         this._resultItems.pop();
       }
     } else {
+      if (this._reset) {
+        // might happen due to still running code during reset
+        return;
+      }
       throw new Error('Cannot delete letter from empty text');
     }
   }
@@ -201,7 +206,15 @@ export class Typed {
     if (this._reset) {
       return;
     }
-    const text = this._resultItems.map(item => item.text).join('');
+    const text = this._resultItems
+      .map(item => {
+        if (item.className) {
+          return `<span class="${item.className}">${item.text}</span>`;
+        } else {
+          return item.text;
+        }
+      })
+      .join('');
     this.options.callback(text);
   }
 }

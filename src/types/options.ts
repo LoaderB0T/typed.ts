@@ -16,8 +16,12 @@ export type EraseOptions = {
   eraseDelay: number | MinMax;
 };
 
+export type ClassNameOptions = {
+  className: string;
+};
+
 export type FullTypingOptions = TypingOptions & RequiredTypingOptions & EraseOptions;
 export type PartialTypingOptions = Partial<FullTypingOptions>;
 export type ConstructorTypingOptions = Partial<TypingOptions> & RequiredTypingOptions & Partial<EraseOptions>;
-export type SentanceTypingOptions = Partial<TypingOptions> & Partial<EraseOptions>;
+export type SentanceTypingOptions = Partial<TypingOptions> & Partial<EraseOptions> & Partial<ClassNameOptions>;
 export type EraseTypingOptions = Partial<EraseOptions>;

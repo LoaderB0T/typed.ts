@@ -6,6 +6,7 @@ export type Sentance = {
   type: 'sentance';
   text: string;
   options?: SentanceTypingOptions;
+  className?: string;
 };
 
 export type Backspace = {

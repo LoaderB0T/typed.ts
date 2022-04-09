@@ -11,14 +11,9 @@ const line3 = 'this is typed really fast, but errors are slow';
 const line4 = 'this line is fast forwarded. No errors will be made';
 
 const type = async () => {
-  typed.type(line1);
-  typed.type(line2, { perLetterDelay: 500 });
+  typed.type(line2);
+  typed.type(line2, { className: 'error' });
   typed.backspace(line2.length);
-  setTimeout(async () => {
-    await typed.reset();
-    typed.type(line3);
-    await typed.run();
-  }, 200);
   await typed.run();
   // await typed.backspace(line1.length, { minEraseDelay: 20, maxEraseDelay: 40 });
   // await typed.start(line2, { minDelay: 200, maxDelay: 400 });
