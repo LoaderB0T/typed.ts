@@ -173,7 +173,7 @@ export class Typed {
   }
 
   private async maybeDoError(currentSentance: Sentance, indexDelta: number): Promise<void> {
-    // @todo improve error rate
+    // @todo improve error rate (dynamic error rate based last error(s))
     if (Math.random() > this.options.errorRate) {
       return;
     }
