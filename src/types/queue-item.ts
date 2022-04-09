@@ -1,6 +1,6 @@
 import { EraseTypingOptions, SentanceTypingOptions } from './options';
 
-export type QueueItem = Sentance | Backspace;
+export type QueueItem = Sentance | Backspace | Wait;
 
 export type Sentance = {
   type: 'sentance';
@@ -13,4 +13,10 @@ export type Backspace = {
   type: 'backspace';
   length: number;
   options?: EraseTypingOptions;
+};
+
+export type Wait = {
+  type: 'wait';
+  delay: number;
+  options?: never;
 };

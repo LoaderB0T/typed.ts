@@ -12,6 +12,7 @@ const line4 = 'this line is fast forwarded. No errors will be made';
 
 const type = async () => {
   typed.type(line2);
+  typed.wait(1000);
   typed.type(line2, { className: 'error' });
   typed.backspace(line2.length);
   await typed.run();

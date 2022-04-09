@@ -2,7 +2,7 @@ import { keyboards } from './data/keyboards';
 import { RandomChars } from './random-char';
 import { Keyboard } from './types/keyboard';
 import { ConstructorTypingOptions, EraseTypingOptions, FullTypingOptions, SentanceTypingOptions } from './types/options';
-import { Backspace, QueueItem, Sentance } from './types/queue-item';
+import { Backspace, QueueItem, Sentance, Wait } from './types/queue-item';
 import { Resetter } from './types/resetter';
 import { ResultItem } from './types/result-item';
 import { wait } from './utils/wait';
@@ -88,6 +88,14 @@ export class Typed {
     return this;
   }
 
+  public wait(delay: number): Typed {
+    this._queue.push({
+      type: 'wait',
+      delay
+    });
+    return this;
+  }
+
   public async run(): Promise<void> {
     this._currentQueueIndex = 0;
     this._currentQueueDetailIndex = 0;
@@ -104,6 +112,8 @@ export class Typed {
         return this.typeLetter();
       case 'backspace':
         return this.typeBackspace();
+      case 'wait':
+        return this.waitItem();
       default:
         throw new Error('Unknown queue item type');
     }
@@ -129,12 +139,18 @@ export class Typed {
     return this.endQueueItemStep(currentBackspaceItem.length);
   }
 
-  private endQueueItemStep(maxDetailIndex: number): boolean {
+  private async waitItem(): Promise<boolean> {
+    const currentWaitItem = this._queue[this._currentQueueIndex] as Wait;
+    await wait(currentWaitItem.delay, this._resetter);
+    return this.endQueueItemStep();
+  }
+
+  private endQueueItemStep(maxDetailIndex?: number): boolean {
     if (this._reset) {
       return false;
     }
     this._currentQueueDetailIndex++;
-    if (this._currentQueueDetailIndex === maxDetailIndex) {
+    if (!maxDetailIndex || this._currentQueueDetailIndex === maxDetailIndex) {
       return this.nextQueueItem();
     } else {
       return true;
