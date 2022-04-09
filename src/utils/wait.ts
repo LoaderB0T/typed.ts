@@ -1,5 +1,5 @@
+import { Resetter } from '../resetter';
 import { MinMax } from '../types/min-max';
-import { Resetter } from '../types/resetter';
 import { randomInt } from './random-int';
 
 export const wait = async (ms: number | MinMax | undefined, resetter: Resetter) => {
@@ -7,22 +7,21 @@ export const wait = async (ms: number | MinMax | undefined, resetter: Resetter) 
     return;
   }
 
-  if (resetter.isReset()) {
+  if (resetter.isReset) {
     return;
   }
 
-  let remainingDely = typeof ms === 'number' ? ms : randomInt(ms.min, ms.max);
+  const delay = typeof ms === 'number' ? ms : randomInt(ms.min, ms.max);
 
   let resolveFn: Function;
   const promise = new Promise<void>(resolve => (resolveFn = resolve));
+  const interval = setTimeout(() => {
+    clearInterval(interval);
+    resolveFn();
+  }, delay);
 
-  const interval = setInterval(() => {
-    remainingDely -= 10;
-    if (remainingDely <= 0 || resetter.isReset()) {
-      clearInterval(interval);
-      resolveFn();
-    }
-  }, 10);
-
-  return Promise.race([promise, resetter.resetPromise]);
+  await Promise.race([promise, resetter.resetPromise, resetter.resetSinglePromise]);
+  if (resetter.isSingleReset) {
+    resetter.resetSingleResetter();
+  }
 };

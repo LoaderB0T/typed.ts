@@ -1,26 +1,27 @@
 import { keyboards } from './data/keyboards';
 import { RandomChars } from './random-char';
+import { Resetter } from './resetter';
 import { Keyboard } from './types/keyboard';
-import { ConstructorTypingOptions, EraseTypingOptions, FullTypingOptions, SentanceTypingOptions } from './types/options';
+import {
+  ConstructorTypingOptions,
+  EraseTypingOptions,
+  FullTypingOptions,
+  PartialTypingOptions,
+  SentanceTypingOptions
+} from './types/options';
 import { Backspace, QueueItem, Sentance, Wait } from './types/queue-item';
-import { Resetter } from './types/resetter';
 import { ResultItem } from './types/result-item';
 import { wait } from './utils/wait';
 
 export class Typed {
+  private readonly _resetter = new Resetter();
+  private readonly _randomChars = new RandomChars();
+  private readonly _options: ConstructorTypingOptions;
   private readonly _queue: QueueItem[] = [];
   private _currentQueueIndex: number = 0;
   private _currentQueueDetailIndex: number = 0;
   private _resultItems: ResultItem[] = [];
-  private readonly _options: ConstructorTypingOptions;
-  private readonly _randomChars = new RandomChars();
-  private _reset: boolean = false;
-  private _resolveReset!: Function;
-  private readonly _resetPromise = new Promise<void>(resolve => (this._resolveReset = resolve));
-  private readonly _resetter: Resetter = {
-    isReset: () => this._reset,
-    resetPromise: this._resetPromise
-  };
+  private _fastForward: boolean = false;
 
   constructor(options: ConstructorTypingOptions) {
     this._options = options;
@@ -32,18 +33,27 @@ export class Typed {
         // do nothing
       },
       initialDelay: 0,
-      eraseDelay: 50,
+      eraseDelay: 100,
       errorRate: 0.2,
       locale: 'en',
       perLetterDelay: 50
     };
+
+    const ffOptions: PartialTypingOptions = this._fastForward
+      ? {
+          perLetterDelay: { min: 10, max: 20 },
+          eraseDelay: { min: 10, max: 20 },
+          initialDelay: 0
+        }
+      : {};
 
     const currentQueueItemOptions = this._queue[this._currentQueueIndex]?.options ?? {};
 
     return {
       ...defaultOptions,
       ...this._options,
-      ...currentQueueItemOptions
+      ...currentQueueItemOptions,
+      ...ffOptions
     };
   }
 
@@ -51,22 +61,16 @@ export class Typed {
     keyboards[locale] = keyboard;
   }
 
-  public async reset() {
+  public async reset(clearTexts: boolean = false): Promise<void> {
     this._resultItems = [];
+    this._fastForward = false;
     this.updateText();
-    while (this._queue.pop()) {
-      // do nothing
+    if (clearTexts) {
+      while (this._queue.pop()) {
+        // do nothing
+      }
     }
-    this._resolveReset();
-    this._reset = true;
-    await new Promise<void>(
-      resolve =>
-        setTimeout(() => {
-          this._reset = false;
-          this._resetter.resetPromise = new Promise<void>(r => (this._resolveReset = r));
-          resolve();
-        }, 10) // wait a bit to make sure the reset promise is resolved @todo find a better way
-    );
+    await this._resetter.reset();
   }
 
   public type(sentance: string, options?: SentanceTypingOptions): Typed {
@@ -105,6 +109,11 @@ export class Typed {
     }
   }
 
+  public fastForward(enabled = true) {
+    this._fastForward = enabled;
+    this._resetter.singleReset();
+  }
+
   private async doQueueAction(): Promise<boolean> {
     const currentQueueItem = this._queue[this._currentQueueIndex];
     switch (currentQueueItem.type) {
@@ -140,13 +149,15 @@ export class Typed {
   }
 
   private async waitItem(): Promise<boolean> {
-    const currentWaitItem = this._queue[this._currentQueueIndex] as Wait;
-    await wait(currentWaitItem.delay, this._resetter);
+    if (!this._fastForward) {
+      const currentWaitItem = this._queue[this._currentQueueIndex] as Wait;
+      await wait(currentWaitItem.delay, this._resetter);
+    }
     return this.endQueueItemStep();
   }
 
   private endQueueItemStep(maxDetailIndex?: number): boolean {
-    if (this._reset) {
+    if (this._resetter.isReset) {
       return false;
     }
     this._currentQueueDetailIndex++;
@@ -179,7 +190,7 @@ export class Typed {
   }
 
   private nextQueueItem(): boolean {
-    if (this._reset) {
+    if (this._resetter.isReset) {
       return false;
     }
     this._currentQueueIndex++;
@@ -210,7 +221,7 @@ export class Typed {
         this._resultItems.pop();
       }
     } else {
-      if (this._reset) {
+      if (this._resetter.isReset) {
         // might happen due to still running code during reset
         return;
       }
@@ -219,7 +230,7 @@ export class Typed {
   }
 
   private updateText() {
-    if (this._reset) {
+    if (this._resetter.isReset) {
       return;
     }
     const text = this._resultItems
