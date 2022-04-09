@@ -8,6 +8,7 @@ export type TypingOptions = {
   initialDelay: number | MinMax;
   perLetterDelay: number | MinMax;
   errorRate: number;
+  noSpecialCharErrors: boolean;
   locale: string;
 };
 

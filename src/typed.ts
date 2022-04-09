@@ -11,6 +11,7 @@ import {
 } from './types/options';
 import { Backspace, QueueItem, Sentance, Wait } from './types/queue-item';
 import { ResultItem } from './types/result-item';
+import { isSpecialChar } from './utils/is-special-char';
 import { wait } from './utils/wait';
 
 export class Typed {
@@ -33,10 +34,11 @@ export class Typed {
         // do nothing
       },
       initialDelay: 0,
-      eraseDelay: 100,
+      eraseDelay: { min: 150, max: 250 },
       errorRate: 0.2,
+      noSpecialCharErrors: false,
       locale: 'en',
-      perLetterDelay: 50
+      perLetterDelay: { min: 40, max: 150 }
     };
 
     const ffOptions: PartialTypingOptions = this._fastForward
@@ -174,6 +176,9 @@ export class Typed {
     }
     const intendedChar = currentSentance.text[this._currentQueueDetailIndex + indexDelta];
     if (!intendedChar) {
+      return;
+    }
+    if (this.options.noSpecialCharErrors && isSpecialChar(intendedChar)) {
       return;
     }
     const nearbyChar = this._randomChars.getRandomCharCloseToChar(intendedChar, this.options.locale);
