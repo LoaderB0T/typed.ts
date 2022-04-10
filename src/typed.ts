@@ -9,21 +9,24 @@ import {
   PartialTypingOptions,
   SentanceTypingOptions
 } from './types/options';
-import { Backspace, QueueItem, Sentance, Wait } from './types/queue-item';
+import { Backspace, Sentance, Wait } from './types/queue-item';
 import { ResultItem } from './types/result-item';
 import { isSpecialChar } from './utils/is-special-char';
 import { wait } from './utils/wait';
+import { Letter } from './types/letter';
+import { Queue } from './types/queue';
 
 export class Typed {
   private readonly _resetter = new Resetter();
   private readonly _randomChars = new RandomChars();
   private readonly _options: ConstructorTypingOptions;
-  private readonly _queue: QueueItem[] = [];
-  private _currentQueueIndex: number = 0;
-  private _currentQueueDetailIndex: number = 0;
+  private readonly _typeQueue: Queue = new Queue(this._resetter);
+  private readonly _ffQueue: Queue = new Queue(this._resetter);
+  private _queue = this._typeQueue;
   private _resultItems: ResultItem[] = [];
   private _fastForward: boolean = false;
   private _lettersSinceLastError: number = 0;
+  private readonly _endResultItems: ResultItem[] = [];
 
   constructor(options: ConstructorTypingOptions) {
     this._options = options;
@@ -48,7 +51,7 @@ export class Typed {
         }
       : {};
 
-    const currentQueueItemOptions = this._queue[this._currentQueueIndex]?.options ?? {};
+    const currentQueueItemOptions = this._queue.item?.options ?? {};
 
     return {
       ...defaultOptions,
@@ -66,8 +69,10 @@ export class Typed {
     this._resultItems = [];
     this._fastForward = false;
     this.updateText();
+    this._ffQueue.clear();
     if (clearTexts) {
-      while (this._queue.pop()) {
+      this._typeQueue.clear();
+      while (this._endResultItems.pop()) {
         // do nothing
       }
     }
@@ -75,26 +80,28 @@ export class Typed {
   }
 
   public type(sentance: string, options?: SentanceTypingOptions): Typed {
-    this._queue.push({
+    this._typeQueue.add({
       type: 'sentance',
       text: sentance,
       options,
       className: options?.className
     });
+    this.addLetterTo(sentance, this._endResultItems, options?.className);
     return this;
   }
 
   public backspace(length: number, options?: EraseTypingOptions): Typed {
-    this._queue.push({
+    this._typeQueue.add({
       type: 'backspace',
       length,
       options
     });
+    this.deleteLetterFrom(this._endResultItems, length);
     return this;
   }
 
   public wait(delay: number): Typed {
-    this._queue.push({
+    this._typeQueue.add({
       type: 'wait',
       delay
     });
@@ -102,8 +109,8 @@ export class Typed {
   }
 
   public async run(): Promise<void> {
-    this._currentQueueIndex = 0;
-    this._currentQueueDetailIndex = 0;
+    this._queue = this._typeQueue;
+    this._typeQueue.resetIndices();
     this._resultItems = [];
     while (await this.doQueueAction()) {
       // do nothing
@@ -111,15 +118,66 @@ export class Typed {
   }
 
   public fastForward(enabled = true) {
-    // @todo switch to "pre-rendered" final version so that not all intermediate steps have to be rendered
-    //   ->  type("hello world").backspace(5).type("you!") -> Results in "hello you!", if we want to FF,
-    //       we shouldn't have to render "world" at all.
+    let matchingLetterCount = 0;
+    while (true) {
+      const currentTextAtIndex = this.getTextAtIndex(this._resultItems, matchingLetterCount);
+      const endResultTextAtIndex = this.getTextAtIndex(this._endResultItems, matchingLetterCount);
+      if (!currentTextAtIndex || !endResultTextAtIndex) {
+        break;
+      }
+      if (
+        currentTextAtIndex.letter === endResultTextAtIndex.letter &&
+        currentTextAtIndex.className === endResultTextAtIndex.className
+      ) {
+        matchingLetterCount++;
+      } else {
+        break;
+      }
+    }
+
+    this._ffQueue.clear();
+    this._queue = this._ffQueue;
+
+    const currentTextWithoutClasses = this.getCurrentText(this._resultItems, false);
+    const currentTextLength = currentTextWithoutClasses.length;
+    const neededBackspaces = currentTextLength - matchingLetterCount;
+    this._ffQueue.add({
+      type: 'backspace',
+      length: neededBackspaces
+    });
+    const resultTextLength = this.getCurrentText(this._endResultItems, false).length;
+    for (let i = 0; i < resultTextLength - matchingLetterCount; i++) {
+      const letter = this.getTextAtIndex(this._endResultItems, i + matchingLetterCount)!;
+      this._ffQueue.add({
+        type: 'sentance',
+        text: letter.letter,
+        options: undefined,
+        className: letter.className
+      });
+    }
+
     this._fastForward = enabled;
     this._resetter.singleReset();
   }
 
+  private getTextAtIndex(resultItems: ResultItem[], index: number): Letter | undefined {
+    let i = 0;
+    let skipped = 0;
+    while (resultItems[i]) {
+      if (resultItems[i].text.length > index - skipped) {
+        const letter = resultItems[i].text.substring(index - skipped, index - skipped + 1);
+        const className = resultItems[i].className;
+        return { letter, className };
+      } else {
+        skipped += resultItems[i].text.length;
+        i++;
+      }
+    }
+    return undefined;
+  }
+
   private async doQueueAction(): Promise<boolean> {
-    const currentQueueItem = this._queue[this._currentQueueIndex];
+    const currentQueueItem = this._queue.item;
     switch (currentQueueItem.type) {
       case 'sentance':
         return this.typeLetter();
@@ -133,50 +191,43 @@ export class Typed {
   }
 
   private async typeLetter(): Promise<boolean> {
-    const currentSentance = this._queue[this._currentQueueIndex] as Sentance;
-    const currentLetter = currentSentance.text[this._currentQueueDetailIndex];
-    await this.maybeDoError(currentSentance, 0);
+    const queue = this._queue;
+    const currentSentance = queue.item as Sentance;
+    const currentLetter = currentSentance.text[queue.detailIndex];
+    await this.maybeDoError(currentSentance, 0, queue);
     this.addLetter(currentLetter, currentSentance.className);
     this._lettersSinceLastError++;
     this.updateText();
     await wait(this.options.perLetterDelay, this._resetter);
-    return this.endQueueItemStep(currentSentance.text.length);
+    return queue.increment(currentSentance.text.length);
   }
 
   private async typeBackspace(): Promise<boolean> {
-    const currentBackspaceItem = this._queue[this._currentQueueIndex] as Backspace;
-    this.deleteLetter();
-    this.updateText();
-    await wait(this.options.eraseDelay, this._resetter);
-    return this.endQueueItemStep(currentBackspaceItem.length);
+    const queue = this._queue;
+    const currentBackspaceItem = queue.item as Backspace;
+    if (currentBackspaceItem.length > 0) {
+      this.deleteLetter();
+      this.updateText();
+      await wait(this.options.eraseDelay, this._resetter);
+    }
+    return queue.increment(currentBackspaceItem.length);
   }
 
   private async waitItem(): Promise<boolean> {
+    const queue = this._queue;
     if (!this._fastForward) {
-      const currentWaitItem = this._queue[this._currentQueueIndex] as Wait;
+      const currentWaitItem = queue.item as Wait;
       await wait(currentWaitItem.delay, this._resetter);
     }
-    return this.endQueueItemStep();
+    return queue.increment();
   }
 
-  private endQueueItemStep(maxDetailIndex?: number): boolean {
-    if (this._resetter.isReset) {
-      return false;
-    }
-    this._currentQueueDetailIndex++;
-    if (!maxDetailIndex || this._currentQueueDetailIndex === maxDetailIndex) {
-      return this.nextQueueItem();
-    } else {
-      return true;
-    }
-  }
-
-  private async maybeDoError(currentSentance: Sentance, currentWrongLettersCount: number): Promise<void> {
+  private async maybeDoError(currentSentance: Sentance, currentWrongLettersCount: number, queue: Queue): Promise<void> {
     const errorProbability = this.calculateErrorProbability(currentWrongLettersCount);
     if (Math.random() > errorProbability) {
       return;
     }
-    const intendedChar = currentSentance.text[this._currentQueueDetailIndex + currentWrongLettersCount];
+    const intendedChar = currentSentance.text[queue.detailIndex + currentWrongLettersCount];
     if (!intendedChar) {
       return;
     }
@@ -191,7 +242,7 @@ export class Typed {
     this.addLetter(nearbyChar, currentSentance.className);
     this.updateText();
     await wait(this.options.perLetterDelay, this._resetter);
-    await this.maybeDoError(currentSentance, currentWrongLettersCount + 1);
+    await this.maybeDoError(currentSentance, currentWrongLettersCount + 1, queue);
     this.deleteLetter();
     this.updateText();
     await wait(this.options.eraseDelay, this._resetter);
@@ -214,24 +265,16 @@ export class Typed {
     return errorProbability * this.options.errorMultiplier;
   }
 
-  private nextQueueItem(): boolean {
-    if (this._resetter.isReset) {
-      return false;
-    }
-    this._currentQueueIndex++;
-    if (this._currentQueueIndex === this._queue.length) {
-      return false;
-    }
-    this._currentQueueDetailIndex = 0;
-    return true;
+  private addLetter(letter: string, className?: string) {
+    this.addLetterTo(letter, this._resultItems, className);
   }
 
-  private addLetter(letter: string, className?: string) {
-    const lastResultItem = this._resultItems[this._resultItems.length - 1];
+  private addLetterTo(letter: string, result: ResultItem[], className?: string) {
+    const lastResultItem = result[result.length - 1];
     if (lastResultItem && lastResultItem.className === className) {
       lastResultItem.text += letter;
     } else {
-      this._resultItems.push({
+      result.push({
         text: letter,
         className
       });
@@ -239,34 +282,52 @@ export class Typed {
   }
 
   private deleteLetter() {
-    const lastResultItem = this._resultItems[this._resultItems.length - 1];
-    if (lastResultItem) {
-      lastResultItem.text = lastResultItem.text.slice(0, -1);
-      if (!lastResultItem.text) {
-        this._resultItems.pop();
+    this.deleteLetterFrom(this._resultItems);
+  }
+
+  private deleteLetterFrom(result: ResultItem[], length: number = 1) {
+    let needsAnotherDelete = false;
+    do {
+      let deleteAmountForThisItem = length;
+      const lastResultItem = result[result.length - 1];
+      const maxDeletableAmount = lastResultItem.text.length;
+      if (maxDeletableAmount < length) {
+        deleteAmountForThisItem = maxDeletableAmount;
+        length -= maxDeletableAmount;
+        needsAnotherDelete = true;
       }
-    } else {
-      if (this._resetter.isReset) {
-        // might happen due to still running code during reset
-        return;
+      if (lastResultItem) {
+        lastResultItem.text = lastResultItem.text.slice(0, -deleteAmountForThisItem);
+        if (!lastResultItem.text) {
+          result.pop();
+        }
+      } else {
+        if (this._resetter.isReset) {
+          // might happen due to still running code during reset
+          return;
+        }
+        throw new Error('Cannot delete letter from empty text');
       }
-      throw new Error('Cannot delete letter from empty text');
-    }
+    } while (needsAnotherDelete);
   }
 
   private updateText() {
     if (this._resetter.isReset) {
       return;
     }
-    const text = this._resultItems
+    const text = this.getCurrentText(this._resultItems);
+    this.options.callback(text);
+  }
+
+  private getCurrentText(result: ResultItem[], includeClasses = true) {
+    return result
       .map(item => {
-        if (item.className) {
+        if (item.className && includeClasses) {
           return `<span class="${item.className}">${item.text}</span>`;
         } else {
           return item.text;
         }
       })
       .join('');
-    this.options.callback(text);
   }
 }

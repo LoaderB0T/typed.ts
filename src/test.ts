@@ -5,16 +5,16 @@ const typed = new Typed({
   perLetterDelay: { min: 20, max: 200 }
 });
 
-const line1 = 'Hello, World!';
+const line1 = 'this is some text that will be deleted';
 const line2 = 'slow';
 const line3 = 'this is typed really fast, but errors are slow';
 const line4 = 'this line is fast forwarded. No errors will be made';
 
 const type = async () => {
-  typed.type(line3).type(line4);
-  typed.wait(1000);
-  typed.type(line2, { className: 'error' });
-  typed.backspace(line2.length);
+  typed.type(line1).backspace(line1.length).type(line4);
+  setTimeout(() => {
+    typed.fastForward();
+  }, 1000);
   await typed.run();
   // await typed.backspace(line1.length, { minEraseDelay: 20, maxEraseDelay: 40 });
   // await typed.start(line2, { minDelay: 200, maxDelay: 400 });
