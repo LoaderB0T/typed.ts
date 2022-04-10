@@ -6,6 +6,7 @@ export type RequiredTypingOptions = {
 
 export type TypingOptions = {
   perLetterDelay: number | MinMax;
+  errorDelay: number | MinMax;
   errorMultiplier: number;
   noSpecialCharErrors: boolean;
   locale: string;
