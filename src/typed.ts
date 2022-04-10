@@ -28,6 +28,12 @@ export class Typed {
   private _lettersSinceLastError: number = 0;
   private readonly _endResultItems: ResultItem[] = [];
 
+  private readonly _fastForwardOptions: PartialTypingOptions = {
+    perLetterDelay: { min: 10, max: 20 },
+    eraseDelay: { min: 10, max: 20 },
+    errorDelay: { min: 100, max: 200 }
+  };
+
   constructor(options: ConstructorTypingOptions) {
     this._options = options;
   }
@@ -45,13 +51,7 @@ export class Typed {
       perLetterDelay: { min: 40, max: 150 }
     };
 
-    const ffOptions: PartialTypingOptions = this._fastForward
-      ? {
-          perLetterDelay: { min: 10, max: 20 },
-          eraseDelay: { min: 10, max: 20 },
-          errorDelay: { min: 100, max: 200 }
-        }
-      : {};
+    const ffOptions: PartialTypingOptions = this._fastForward ? this._fastForwardOptions : {};
 
     const currentQueueItemOptions = this._queue.item?.options ?? {};
 
@@ -119,7 +119,10 @@ export class Typed {
     }
   }
 
-  public fastForward(enabled = true) {
+  public fastForward() {
+    if (this._fastForward) {
+      return;
+    }
     let matchingLetterCount = 0;
     while (true) {
       const currentTextAtIndex = this.getTextAtIndex(this._resultItems, matchingLetterCount);
@@ -143,10 +146,12 @@ export class Typed {
     const currentTextWithoutClasses = this.getCurrentText(this._resultItems, false);
     const currentTextLength = currentTextWithoutClasses.length;
     const neededBackspaces = currentTextLength - matchingLetterCount;
-    this._ffQueue.add({
-      type: 'backspace',
-      length: neededBackspaces
-    });
+    if (neededBackspaces) {
+      this._ffQueue.add({
+        type: 'backspace',
+        length: neededBackspaces
+      });
+    }
     const resultTextLength = this.getCurrentText(this._endResultItems, false).length;
     for (let i = 0; i < resultTextLength - matchingLetterCount; i++) {
       const letter = this.getTextAtIndex(this._endResultItems, i + matchingLetterCount)!;
@@ -158,7 +163,7 @@ export class Typed {
       });
     }
 
-    this._fastForward = enabled;
+    this._fastForward = true;
     this._resetter.singleReset();
   }
 
@@ -197,11 +202,13 @@ export class Typed {
     const currentSentance = queue.item as Sentance;
     const currentLetter = currentSentance.text[queue.detailIndex];
     await this.maybeDoError(currentSentance, 0, queue);
-    this.addLetter(currentLetter, currentSentance.className);
-    this._lettersSinceLastError++;
-    this.updateText();
-    await wait(this.options.perLetterDelay, this._resetter);
-    return queue.increment(currentSentance.text.length);
+    if (queue === this._queue) {
+      this.addLetter(currentLetter, currentSentance.className);
+      this._lettersSinceLastError++;
+      this.updateText();
+      await wait(this.options.perLetterDelay, this._resetter);
+    }
+    return this.incrementQueue(queue, currentSentance.text.length);
   }
 
   private async typeBackspace(): Promise<boolean> {
@@ -212,7 +219,7 @@ export class Typed {
       this.updateText();
       await wait(this.options.eraseDelay, this._resetter);
     }
-    return queue.increment(currentBackspaceItem.length);
+    return this.incrementQueue(queue, currentBackspaceItem.length);
   }
 
   private async waitItem(): Promise<boolean> {
@@ -221,10 +228,19 @@ export class Typed {
       const currentWaitItem = queue.item as Wait;
       await wait(currentWaitItem.delay, this._resetter);
     }
-    return queue.increment();
+    return this.incrementQueue(queue);
+  }
+
+  private incrementQueue(queue: Queue, maxDetailIndex?: number) {
+    if (queue === this._queue) {
+      return queue.increment(maxDetailIndex);
+    } else {
+      return this.doQueueAction();
+    }
   }
 
   private async maybeDoError(currentSentance: Sentance, currentWrongLettersCount: number, queue: Queue): Promise<void> {
+    const wasFF = this._fastForward;
     const errorProbability = this.calculateErrorProbability(currentWrongLettersCount);
     let willError = true;
     if (Math.random() > errorProbability) {
@@ -243,7 +259,9 @@ export class Typed {
     }
     if (!willError || !nearbyChar) {
       if (currentWrongLettersCount > 0) {
-        await wait(this.options.errorDelay, this._resetter);
+        if (!this._fastForward || wasFF) {
+          await wait(this.options.errorDelay, this._resetter);
+        }
       }
       return;
     }
@@ -251,10 +269,16 @@ export class Typed {
     this.addLetter(nearbyChar, currentSentance.className);
     this.updateText();
     await wait(this.options.perLetterDelay, this._resetter);
-    await this.maybeDoError(currentSentance, currentWrongLettersCount + 1, queue);
-    this.deleteLetter();
-    this.updateText();
-    await wait(this.options.eraseDelay, this._resetter);
+    if (!this._fastForward || wasFF) {
+      await this.maybeDoError(currentSentance, currentWrongLettersCount + 1, queue);
+    }
+    if (!this._fastForward || wasFF) {
+      this.deleteLetter();
+      this.updateText();
+    }
+    if (!this._fastForward || wasFF) {
+      await wait(this.options.eraseDelay, this._resetter);
+    }
   }
 
   private calculateErrorProbability(currentWrongLettersCount: number): number {
