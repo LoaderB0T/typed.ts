@@ -38,6 +38,7 @@ export class Typed {
         // do nothing
       },
       eraseDelay: { min: 150, max: 250 },
+      errorDelay: { min: 50, max: 100 },
       errorMultiplier: 1,
       noSpecialCharErrors: false,
       locale: 'en',
@@ -47,7 +48,8 @@ export class Typed {
     const ffOptions: PartialTypingOptions = this._fastForward
       ? {
           perLetterDelay: { min: 10, max: 20 },
-          eraseDelay: { min: 10, max: 20 }
+          eraseDelay: { min: 10, max: 20 },
+          errorDelay: { min: 100, max: 200 }
         }
       : {};
 
@@ -224,18 +226,25 @@ export class Typed {
 
   private async maybeDoError(currentSentance: Sentance, currentWrongLettersCount: number, queue: Queue): Promise<void> {
     const errorProbability = this.calculateErrorProbability(currentWrongLettersCount);
+    let willError = true;
     if (Math.random() > errorProbability) {
-      return;
+      willError = false;
     }
     const intendedChar = currentSentance.text[queue.detailIndex + currentWrongLettersCount];
     if (!intendedChar) {
-      return;
+      willError = false;
     }
     if (this.options.noSpecialCharErrors && isSpecialChar(intendedChar)) {
-      return;
+      willError = false;
     }
     const nearbyChar = this._randomChars.getRandomCharCloseToChar(intendedChar, this.options.locale);
     if (!nearbyChar) {
+      willError = false;
+    }
+    if (!willError || !nearbyChar) {
+      if (currentWrongLettersCount > 0) {
+        await wait(this.options.errorDelay, this._resetter);
+      }
       return;
     }
     this._lettersSinceLastError = 0;
