@@ -11,7 +11,7 @@ const line3 = 'this is typed really fast, but errors are slow';
 const line4 = 'this line is fast forwarded. No errors will be made';
 
 const type = async () => {
-  typed.type(line2);
+  typed.type(line3).type(line4);
   typed.wait(1000);
   typed.type(line2, { className: 'error' });
   typed.backspace(line2.length);

@@ -9,7 +9,8 @@
   "scripts": {
     "lint": "yarn eslint ./src/**",
     "test": "jest",
-    "build": "tsc -p .",
+    "build": "yarn build-dev",
+    "build-dev": "tsc -p .",
     "prebuild": "rimraf lib"
   },
   "license": "MIT",

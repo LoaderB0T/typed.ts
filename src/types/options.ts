@@ -5,15 +5,13 @@ export type RequiredTypingOptions = {
 };
 
 export type TypingOptions = {
-  initialDelay: number | MinMax;
   perLetterDelay: number | MinMax;
-  errorRate: number;
+  errorMultiplier: number;
   noSpecialCharErrors: boolean;
   locale: string;
 };
 
 export type EraseOptions = {
-  initialDelay: number | MinMax;
   eraseDelay: number | MinMax;
 };
 

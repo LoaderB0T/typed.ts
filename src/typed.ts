@@ -23,6 +23,7 @@ export class Typed {
   private _currentQueueDetailIndex: number = 0;
   private _resultItems: ResultItem[] = [];
   private _fastForward: boolean = false;
+  private _lettersSinceLastError: number = 0;
 
   constructor(options: ConstructorTypingOptions) {
     this._options = options;
@@ -33,9 +34,8 @@ export class Typed {
       callback: () => {
         // do nothing
       },
-      initialDelay: 0,
       eraseDelay: { min: 150, max: 250 },
-      errorRate: 0.2,
+      errorMultiplier: 1,
       noSpecialCharErrors: false,
       locale: 'en',
       perLetterDelay: { min: 40, max: 150 }
@@ -44,8 +44,7 @@ export class Typed {
     const ffOptions: PartialTypingOptions = this._fastForward
       ? {
           perLetterDelay: { min: 10, max: 20 },
-          eraseDelay: { min: 10, max: 20 },
-          initialDelay: 0
+          eraseDelay: { min: 10, max: 20 }
         }
       : {};
 
@@ -136,9 +135,9 @@ export class Typed {
   private async typeLetter(): Promise<boolean> {
     const currentSentance = this._queue[this._currentQueueIndex] as Sentance;
     const currentLetter = currentSentance.text[this._currentQueueDetailIndex];
-    await wait(this.options.initialDelay, this._resetter);
     await this.maybeDoError(currentSentance, 0);
     this.addLetter(currentLetter, currentSentance.className);
+    this._lettersSinceLastError++;
     this.updateText();
     await wait(this.options.perLetterDelay, this._resetter);
     return this.endQueueItemStep(currentSentance.text.length);
@@ -172,12 +171,12 @@ export class Typed {
     }
   }
 
-  private async maybeDoError(currentSentance: Sentance, indexDelta: number): Promise<void> {
-    // @todo improve error rate (dynamic error rate based last error(s))
-    if (Math.random() > this.options.errorRate) {
+  private async maybeDoError(currentSentance: Sentance, currentWrongLettersCount: number): Promise<void> {
+    const errorProbability = this.calculateErrorProbability(currentWrongLettersCount);
+    if (Math.random() > errorProbability) {
       return;
     }
-    const intendedChar = currentSentance.text[this._currentQueueDetailIndex + indexDelta];
+    const intendedChar = currentSentance.text[this._currentQueueDetailIndex + currentWrongLettersCount];
     if (!intendedChar) {
       return;
     }
@@ -188,13 +187,31 @@ export class Typed {
     if (!nearbyChar) {
       return;
     }
+    this._lettersSinceLastError = 0;
     this.addLetter(nearbyChar, currentSentance.className);
     this.updateText();
     await wait(this.options.perLetterDelay, this._resetter);
-    await this.maybeDoError(currentSentance, indexDelta + 1);
+    await this.maybeDoError(currentSentance, currentWrongLettersCount + 1);
     this.deleteLetter();
     this.updateText();
     await wait(this.options.eraseDelay, this._resetter);
+  }
+
+  private calculateErrorProbability(currentWrongLettersCount: number): number {
+    let errorProbability = 0;
+
+    // The more correct letters we typed, the more likely we are to make an error
+    errorProbability += (1 / 1000) * Math.pow(this._lettersSinceLastError, 2);
+
+    // If we just made an error, the more likely we are to make another one
+    if (currentWrongLettersCount === 1) {
+      errorProbability += 0.4;
+    } else if (currentWrongLettersCount === 2) {
+      errorProbability += 0.2;
+    }
+
+    // Adjust based on the configured modifier
+    return errorProbability * this.options.errorMultiplier;
   }
 
   private nextQueueItem(): boolean {
