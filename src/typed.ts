@@ -239,21 +239,23 @@ export class Typed {
     }
   }
 
-  private async maybeDoError(currentSentance: Sentance, currentWrongLettersCount: number, queue: Queue): Promise<void> {
-    const wasFF = this._fastForward;
+  private async shouldError(
+    currentWrongLettersCount: number,
+    intendedChar: string,
+    wasFF: boolean,
+    nearbyChar?: string
+  ): Promise<boolean> {
     const errorProbability = this.calculateErrorProbability(currentWrongLettersCount);
     let willError = true;
     if (Math.random() > errorProbability) {
       willError = false;
     }
-    const intendedChar = currentSentance.text[queue.detailIndex + currentWrongLettersCount];
     if (!intendedChar) {
       willError = false;
     }
     if (this.options.noSpecialCharErrors && isSpecialChar(intendedChar)) {
       willError = false;
     }
-    const nearbyChar = this._randomChars.getRandomCharCloseToChar(intendedChar, this.options.locale);
     if (!nearbyChar) {
       willError = false;
     }
@@ -263,8 +265,20 @@ export class Typed {
           await wait(this.options.errorDelay, this._resetter);
         }
       }
+    }
+    return willError;
+  }
+
+  private async maybeDoError(currentSentance: Sentance, currentWrongLettersCount: number, queue: Queue): Promise<void> {
+    const wasFF = this._fastForward;
+    const intendedChar = currentSentance.text[queue.detailIndex + currentWrongLettersCount];
+    const nearbyChar = this._randomChars.getRandomCharCloseToChar(intendedChar, this.options.locale);
+
+    const shouldError = await this.shouldError(currentWrongLettersCount, intendedChar, wasFF, nearbyChar);
+    if (!shouldError || !nearbyChar) {
       return;
     }
+
     this._lettersSinceLastError = 0;
     this.addLetter(nearbyChar, currentSentance.className);
     this.updateText();
