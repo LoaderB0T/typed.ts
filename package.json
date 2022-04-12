@@ -2,6 +2,18 @@
   "name": "typed.ts",
   "version": "2.0.0",
   "description": "Realistic typing simulations in TypeScript",
+  "author": {
+    "name": "Janik Schumacher (LoaderB0T)",
+    "url": "https://awdware.de"
+  },
+  "homepage": "https://github.com/LoaderB0T/typed.ts",
+  "bugs": {
+    "url": "https://github.com/LoaderB0T/typed.ts/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LoaderB0T/typed.ts.git"
+  },
   "main": "lib/index.js",
   "files": [
     "lib"
@@ -46,17 +58,5 @@
     "errors",
     "string",
     "writing"
-  ],
-  "author": {
-    "name": "Janik Schumacher (LoaderB0T)",
-    "url": "https://twitter.com/TheLoaderB0T"
-  },
-  "homepage": "https://github.com/LoaderB0T/typed.ts",
-  "bugs": {
-    "url": "https://github.com/LoaderB0T/typed.ts/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/LoaderB0T/typed.ts.git"
-  }
+  ]
 }
