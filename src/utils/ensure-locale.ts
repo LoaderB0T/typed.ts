@@ -1,4 +1,4 @@
-import { keyboards } from '../data/keyboards';
+import { keyboards } from '../data/keyboards.js';
 
 export const ensureLocale = (locale: string) => {
   if (!keyboards[locale]) {

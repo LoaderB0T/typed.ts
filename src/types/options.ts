@@ -1,4 +1,4 @@
-import { MinMax } from './min-max';
+import { MinMax } from './min-max.js';
 
 export type RequiredTypingOptions = {
   callback: (text: string) => void;

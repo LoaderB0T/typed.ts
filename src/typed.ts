@@ -1,7 +1,7 @@
-import { keyboards } from './data/keyboards';
-import { RandomChars } from './utils/random-char';
-import { Resetter } from './utils/resetter';
-import { Keyboard } from './types/keyboard';
+import { keyboards } from './data/keyboards.js';
+import { RandomChars } from './utils/random-char.js';
+import { Resetter } from './utils/resetter.js';
+import { Keyboard } from './types/keyboard.js';
 import {
   ConstructorTypingOptions,
   EraseTypingOptions,
@@ -9,12 +9,12 @@ import {
   PartialTypingOptions,
   SentanceTypingOptions
 } from './types/options';
-import { Backspace, Sentance, Wait } from './types/queue-item';
-import { ResultItem } from './types/result-item';
-import { isSpecialChar } from './utils/is-special-char';
-import { wait } from './utils/wait';
-import { Letter } from './types/letter';
-import { Queue } from './types/queue';
+import { Backspace, Sentance, Wait } from './types/queue-item.js';
+import { ResultItem } from './types/result-item.js';
+import { isSpecialChar } from './utils/is-special-char.js';
+import { wait } from './utils/wait.js';
+import { Letter } from './types/letter.js';
+import { Queue } from './types/queue.js';
 
 export class Typed {
   private readonly _resetter = new Resetter();

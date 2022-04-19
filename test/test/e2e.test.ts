@@ -1,5 +1,5 @@
-import { Typed } from '../../src/typed';
-import { randomStub, resetRandomStub } from '../random-stub';
+import { Typed } from '../../src/typed.js';
+import { randomStub, resetRandomStub } from '../random-stub.js';
 
 describe('', () => {
   let typed: Typed;

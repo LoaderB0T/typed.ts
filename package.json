@@ -14,16 +14,26 @@
     "type": "git",
     "url": "https://github.com/LoaderB0T/typed.ts.git"
   },
-  "main": "lib/index.js",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./lib/esm/index.js",
+      "require": "./lib/cjs/index.js"
+    }
+  },
+  "main": "./lib/cjs/index.js",
   "files": [
     "lib"
   ],
   "scripts": {
     "lint": "yarn eslint ./src/**",
     "test": "jest",
-    "build": "yarn build-dev",
-    "build-dev": "tsc -p .",
-    "prebuild": "rimraf lib"
+    "prebuild": "yarn rimraf lib",
+    "build": "yarn build-esm && yarn build-cjs",
+    "build-base": "tsc -p .",
+    "build-esm": "yarn build-base --outDir lib/esm",
+    "build-cjs": "yarn build-base --outDir lib/cjs --module commonjs && yarn fix-cjs",
+    "fix-cjs": "node --loader ts-node/esm ./fix-cjs.ts"
   },
   "license": "MIT",
   "private": false,
