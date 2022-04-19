@@ -1,5 +1,5 @@
-import { Resetter } from '../utils/resetter';
-import { QueueItem } from './queue-item';
+import { Resetter } from '../utils/resetter.js';
+import { QueueItem } from './queue-item.js';
 
 export class Queue {
   private readonly _resetter: Resetter;

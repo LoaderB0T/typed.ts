@@ -1,4 +1,4 @@
-import { Typed } from './typed';
+import { Typed } from './typed.js';
 
 const typed = new Typed({
   callback: text => console.log(text),

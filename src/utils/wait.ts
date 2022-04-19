@@ -1,6 +1,6 @@
-import { Resetter } from './resetter';
-import { MinMax } from '../types/min-max';
-import { randomInt } from './random-int';
+import { Resetter } from './resetter.js';
+import { MinMax } from '../types/min-max.js';
+import { randomInt } from './random-int.js';
 
 export const wait = async (ms: number | MinMax | undefined, resetter: Resetter) => {
   if (!ms) {
