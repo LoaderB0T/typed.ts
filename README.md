@@ -32,6 +32,8 @@ This small package provides simple typing simulations for TypeScript or JavaScri
 
 ✅ Promise based for easy async usage
 
+✅ ESM & CJS exports
+
 ✅ Zero dependencies
 
 This project is meant to be lightweight. You will need to write a couple lines of code to integrate it in your app. This is by design.
