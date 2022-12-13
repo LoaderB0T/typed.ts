@@ -63,10 +63,28 @@ export class Typed {
     };
   }
 
+  /**
+   * Adds a new keyboard layout to the list of available keyboards.
+   * @param locale The locale of the keyboard layout.
+   * @param keyboard The keyboard layout.
+   * @example
+   * ```
+   * typed.addKeyboard('de', {
+   *   lower: ['1234567890ß', 'qwertzuiopü+', 'asdfghjklöä#', 'yxcvbnm,.-', ' '],
+   *   upper: ['!"§$%&/()=?', 'QWERTZUIOPÜ*', "ASDFGHJKLÖÄ'", 'YXCVBNM;:_', ' ']
+   * });
+   * ```
+   * More info [here](https://github.com/LoaderB0T/typed.ts#Add-your-own-keyboard-layouts)
+   */
   public addKeyboard(locale: string, keyboard: Keyboard) {
     keyboards[locale] = keyboard;
   }
 
+  /**
+   * Stops the current animation.
+   * @param clearTexts Whether to clear the texts or not.
+   * @returns A promise that resolves when the animation has stopped and can be started again.
+   */
   public async reset(clearTexts: boolean = false): Promise<void> {
     this._resultItems = [];
     this._fastForward = false;
@@ -81,6 +99,12 @@ export class Typed {
     await this._resetter.reset();
   }
 
+  /**
+   * Adds a string that will be typed out to the end of the queue.
+   * @param sentance The string to type out.
+   * @param options The options for typing.
+   * @returns The Typed instance.
+   */
   public type(sentance: string, options?: SentanceTypingOptions): Typed {
     this._typeQueue.add({
       type: 'sentance',
@@ -92,6 +116,12 @@ export class Typed {
     return this;
   }
 
+  /**
+   * Adds the deletion of a number of letters to the end of the queue.
+   * @param length The number of letters to delete.
+   * @param options The options for erasing.
+   * @returns The Typed instance.
+   */
   public backspace(length: number, options?: EraseTypingOptions): Typed {
     this._typeQueue.add({
       type: 'backspace',
@@ -102,6 +132,11 @@ export class Typed {
     return this;
   }
 
+  /**
+   * Adds a delay to the end of the queue.
+   * @param delay The delay in milliseconds.
+   * @returns The Typed instance.
+   */
   public wait(delay: number): Typed {
     this._typeQueue.add({
       type: 'wait',
@@ -110,6 +145,10 @@ export class Typed {
     return this;
   }
 
+  /**
+   * Runs the configured animation (queue).
+   * @returns A promise that resolves when the animation has finished.
+   */
   public async run(): Promise<void> {
     this._queue = this._typeQueue;
     this._typeQueue.resetIndices();
@@ -119,6 +158,10 @@ export class Typed {
     }
   }
 
+  /**
+   * Fast forwards the current animation. Skipping all delays and only typing characters that are relevant for the end result.
+   * @returns A promise that resolves when the animation has finished.
+   */
   public fastForward() {
     if (this._fastForward) {
       return;

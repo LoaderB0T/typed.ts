@@ -102,7 +102,7 @@ const typed = new Typed({
 
 - `callback` - The callback function that will be called every time the text changes. This is required.
 - `eraseDelay` - The delay between erasing characters.
-- `errorDelay` - The delay between making an error and correcting it.
+- `errorDelay` - The delay between making errors and correcting them.
 - `perLetterDelay` - The delay between typing characters.
 - `errorMultiplier` - The multiplier for how often an error will be made. The value ranges from 0 to n. 0 means no errors, 1 means normal errors, 2 means twice as many errors, etc. Can be a decimal number.
 - `noSpecialCharErrors` - If set to true, errors will only be made on letters and numbers. Special characters will always be typed correctly.
