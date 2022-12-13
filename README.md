@@ -73,6 +73,136 @@ const type = async () => {
 type();
 ```
 
+## Documentation 📖
+
+Get started by creating a new instance of the `Typed` class. You can pass a callback function to the constructor, which will be called every time the text changes. In this example, we will simply log the text to the console, but you can use this to render the text in your app.
+
+If you are using Angular or rxjs, check out the [rxjs-typed.ts](https://github.com/LoaderB0T/rxjs-typed.ts) package.
+
+```typescript
+import { Typed } from 'typed.ts';
+const typed = new Typed({ callback: text => console.log(text) });
+```
+
+### Options
+
+Next to the callback, you can also pass some options to the constructor. These are the default values:
+
+```typescript
+const typed = new Typed({
+  callback: () => {},
+  eraseDelay: { min: 150, max: 250 },
+  errorDelay: { min: 50, max: 100 },
+  perLetterDelay: { min: 40, max: 150 },
+  errorMultiplier: 1,
+  noSpecialCharErrors: false,
+  locale: 'en'
+});
+```
+
+- `callback` - The callback function that will be called every time the text changes. This is required.
+- `eraseDelay` - The delay between erasing characters.
+- `errorDelay` - The delay between making an error and correcting it.
+- `perLetterDelay` - The delay between typing characters.
+- `errorMultiplier` - The multiplier for how often an error will be made. The value ranges from 0 to n. 0 means no errors, 1 means normal errors, 2 means twice as many errors, etc. Can be a decimal number.
+- `noSpecialCharErrors` - If set to true, errors will only be made on letters and numbers. Special characters will always be typed correctly.
+- `locale` - The locale to use for the keyboard layout. Currently only `en` and `de` are supported, but you can [add your own layouts](#add-your-own-keyboard-layouts).
+
+ℹ️ The delay values can be either a number or an object with a `min` and `max` property. If you pass an object, the delay will be a random number between `min` and `max`.
+
+### Methods
+
+To prepare the typing animation, `typed.ts` provides a few methods. These methods are chainable, so you can call them one after another. Note that the methods are not executed immediately, but rather when you call the `run` method.
+
+```typescript
+// All available type() options and their default values:
+const typeOptions = {
+  eraseDelay: { min: 150, max: 250 },
+  errorDelay: { min: 50, max: 100 },
+  perLetterDelay: { min: 40, max: 150 },
+  errorMultiplier: 1,
+  noSpecialCharErrors: false,
+  locale: 'en',
+  className: 'my-class' // <-- explained further down
+}
+
+typed.type('Hello, World!', typeOptions);
+// Will type 'Hello, World!'
+
+// All available erase() options and their default values:
+const eraseOptions = {
+  eraseDelay: { min: 150, max: 250 }
+}
+
+// Wait for 1 second before continuing.
+typed.wait(1000);
+
+typed.backspace(6, eraseOptions);
+// Will erase until the text is 'Hello, '
+
+typed.type('you!', typeOptions);
+// Will type until the text is 'Hello, you!'
+
+// This will start the prepared typing animation.
+await typed.run(); // Returns a promise that resolves when the animation is done.
+```
+
+To reset or fast forward the typing animation, you can call the `reset` and `fastForward` methods.
+
+```typescript
+// This will reset the typing animation.
+typed.reset();
+
+// This will fast forward the typing animation, skipping all delays and will only type the relevant characters for the end result.
+typed.fastForward(); // Returns a promise that resolves when the animation is done.
+```
+
+### Custom classes
+
+The type method accepts an optional `className` option. This can be used to add custom classes to the typed text. This can be useful if you want to style the text differently depending on the context.
+
+```typescript
+const username = 'LoaderB0T';
+typed.type('Hello ');
+typed.type(username, { className: 'username' });
+typed.type('. How are you doing today?');
+```
+
+```css
+.username {
+  text-decoration: underline;
+  color: #ff0042;
+}
+```
+
+The resulting string will look like this:
+
+```html
+<span>Hello </span>
+<span class="username">LoaderB0T</span>
+<span>. How are you doing today?</span>
+```
+
+`typed.ts` will automatically handle backspaces correctly, so if you erase the username, the class will also be removed.
+
+### Add your own keyboard layouts
+
+You can add your own keyboard layout by calling the `addKeyboard` method on an instance of the `Typed` class.
+
+```typescript
+import { Typed } from 'typed.ts';
+const typed = new Typed({ callback: text => console.log(text) });
+
+typed.addKeyboard('de', {
+  lower: ['1234567890ß', 'qwertzuiopü+', 'asdfghjklöä#', 'yxcvbnm,.-', ' '],
+  upper: ['!"§$%&/()=?', 'QWERTZUIOPÜ*', "ASDFGHJKLÖÄ'", 'YXCVBNM;:_', ' ']
+});
+```
+
+It takes two parameters: The name of the layout and an object with two properties: `lower` and `upper`. Each of these properties is an array of strings, where each string represents a row on the keyboard. The first string in the array is the top row, the second string is the second row, etc.
+
+ℹ️ The `de` keyboard layout is already included in the package, so you don't need to add it again.
+
 ## Contributing 🧑🏻‍💻
 
 Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
