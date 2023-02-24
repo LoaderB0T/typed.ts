@@ -167,6 +167,7 @@ export class Typed {
       return;
     }
     let matchingLetterCount = 0;
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const currentTextAtIndex = this.getTextAtIndex(this._resultItems, matchingLetterCount);
       const endResultTextAtIndex = this.getTextAtIndex(this._endResultItems, matchingLetterCount);
