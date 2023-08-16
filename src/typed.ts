@@ -4,6 +4,7 @@ import { Resetter } from './utils/resetter.js';
 import { Keyboard } from './types/keyboard.js';
 import {
   ConstructorTypingOptions,
+  CustomUpdateSetup,
   EraseTypingOptions,
   FullTypingOptions,
   PartialTypingOptions,
@@ -16,7 +17,43 @@ import { wait } from './utils/wait.js';
 import { Letter } from './types/letter.js';
 import { Queue } from './types/queue.js';
 
-export class Typed {
+export class Typed<T = never> {
+  private readonly setupUpdater?: T;
+
+  /**
+   * Creates a factory function that can be used to create Typed instances with a custom setup.
+   * This is useful if you do not want to rely on a callback function to update the text, but rather on a different data structure.
+   * @param customOptions The custom setup options.
+   * @returns A factory function that can be used to create Typed instances with a custom setup.
+   * @example
+   * ```ts
+   * const typedFactory = Typed.factory({
+   *   setUp: () => new BehaviorSubject(''),
+   *   update: (textSubj, text) => textSubj.next(text)
+   * });
+   * // Create a new Typed instance with the custom setup
+   * const typed = typedFactory({
+   *  // some options
+   * });
+   * // access the text BehaviorSubject
+   * typed.text.subscribe(text => console.log(text));
+   * ```
+   */
+  public static factory<T>(customOptions: CustomUpdateSetup<T>) {
+    return (options: Omit<ConstructorTypingOptions, 'callback'>) => new Typed<T>(options, customOptions);
+  }
+
+  /**
+   * Returns the text data structure that was configured using the factory function.
+   * @throws If the factory function was not used to create this instance.
+   */
+  public get text(): T {
+    if (!this.setupUpdater) {
+      throw new Error('To use this property, use the Typed.factory() function.');
+    }
+    return this.setupUpdater;
+  }
+
   private readonly _resetter = new Resetter();
   private readonly _randomChars = new RandomChars();
   private readonly _options: ConstructorTypingOptions;
@@ -34,7 +71,15 @@ export class Typed {
     errorDelay: { min: 100, max: 200 }
   };
 
-  constructor(options: ConstructorTypingOptions) {
+  constructor(options: ConstructorTypingOptions);
+  // @internal
+  constructor(options: Omit<ConstructorTypingOptions, 'callback'>, customSetup: CustomUpdateSetup<T>);
+  constructor(options: ConstructorTypingOptions, customSetup?: CustomUpdateSetup<T>) {
+    if (customSetup) {
+      const setupUpdater = customSetup.setUp();
+      this.setupUpdater = setupUpdater;
+      options.callback = (text: string) => customSetup?.update(setupUpdater, text);
+    }
     this._options = options;
   }
 
@@ -105,7 +150,7 @@ export class Typed {
    * @param options The options for typing.
    * @returns The Typed instance.
    */
-  public type(sentance: string, options?: SentanceTypingOptions): Typed {
+  public type(sentance: string, options?: SentanceTypingOptions): Typed<T> {
     this._typeQueue.add({
       type: 'sentance',
       text: sentance,
@@ -122,7 +167,7 @@ export class Typed {
    * @param options The options for erasing.
    * @returns The Typed instance.
    */
-  public backspace(length: number, options?: EraseTypingOptions): Typed {
+  public backspace(length: number, options?: EraseTypingOptions): Typed<T> {
     this._typeQueue.add({
       type: 'backspace',
       length,
@@ -137,7 +182,7 @@ export class Typed {
    * @param delay The delay in milliseconds.
    * @returns The Typed instance.
    */
-  public wait(delay: number): Typed {
+  public wait(delay: number): Typed<T> {
     this._typeQueue.add({
       type: 'wait',
       delay
@@ -407,6 +452,7 @@ export class Typed {
       return;
     }
     const text = this.getCurrentText(this._resultItems);
+
     this.options.callback(text);
   }
 

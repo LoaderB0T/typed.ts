@@ -27,6 +27,8 @@ This small package provides simple typing simulations for TypeScript or JavaScri
 
 ✅ Custom class names for sections of the string
 
+✅ Factory to use with any framework or library to handle updates (Like rxjs or Angular signals) (See examples below)
+
 ✅ Add new keyboard layouts and custom characters
 
 ✅ No DOM manipulation -> use with any framework (in fact, you don't even need a DOM)
@@ -185,6 +187,44 @@ The resulting string will look like this:
 ```
 
 `typed.ts` will automatically handle backspaces correctly, so if you erase the username, the class will also be removed.
+
+### Use with third party libraries
+
+#### rxjs
+
+```typescript
+import { Typed } from 'typed.ts';
+import { BehaviorSubject } from 'rxjs';
+
+const typedFac = Typed.factory({
+  setUp: () => new BehaviorSubject(''),
+  update: (textSubj, text) => textSubj.next(text)
+});
+
+const typed = typedFac({ // Same arguments as new Typed() except no callback
+  perLetterDelay: { min: 20, max: 200 }
+});
+
+typed.text.subscribe(console.log);
+```
+
+#### Angular signals
+
+```typescript
+import { Typed } from 'typed.ts';
+import { signal, effect } from '@angular/core';
+
+const typedFac = Typed.factory({
+  setUp: () => signal(''),
+  update: (textSig, text) => textSig.set(text)
+});
+
+const typed = typedFac({ // Same arguments as new Typed() except no callback
+  perLetterDelay: { min: 20, max: 200 }
+});
+
+effect(() => console.log(typed.text()));
+```
 
 ### Add your own keyboard layouts
 

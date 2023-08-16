@@ -1,9 +1,17 @@
 import { Typed } from './typed.js';
+import { BehaviorSubject } from 'rxjs';
 
-const typed = new Typed({
-  callback: text => console.log(text),
+const typedFac = Typed.factory({
+  setUp: () => new BehaviorSubject(''),
+  update: (updater, text) => updater.next(text)
+});
+
+const typed = typedFac({
+  // Same arguments as new Typed() except no callback
   perLetterDelay: { min: 20, max: 200 }
 });
+
+typed.text.subscribe(console.log);
 
 const line1 = 'this is some text that will be deleted';
 const line2 = 'slow';

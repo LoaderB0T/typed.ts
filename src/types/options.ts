@@ -1,5 +1,10 @@
 import { MinMax } from './min-max.js';
 
+export type CustomUpdateSetup<T> = {
+  setUp: () => T;
+  update: (updater: T, text: string) => void;
+};
+
 export type RequiredTypingOptions = {
   callback: (text: string) => void;
 };
