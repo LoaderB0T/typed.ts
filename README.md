@@ -80,8 +80,6 @@ type();
 
 Get started by creating a new instance of the `Typed` class. You can pass a callback function to the constructor, which will be called every time the text changes. In this example, we will simply log the text to the console, but you can use this to render the text in your app.
 
-If you are using Angular or rxjs, check out the [rxjs-typed.ts](https://github.com/LoaderB0T/rxjs-typed.ts) package.
-
 ```typescript
 import { Typed } from 'typed.ts';
 const typed = new Typed({ callback: text => console.log(text) });
