@@ -3,7 +3,7 @@
   "parserOptions": {
     "project": "./tsconfig.json"
   },
-  "ignorePatterns": ["test/**/*", "jest.config.ts"],
+  "ignorePatterns": ["test/**/*", "jest.config.ts", "test.ts"],
   "rules": {
     "switch-colon-spacing": "warn"
   }
