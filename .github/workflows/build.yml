@@ -4,6 +4,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -16,7 +17,6 @@ jobs:
     strategy:
       matrix:
         node-version: [18.x, 19.x, 20.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
       - uses: actions/checkout@v2
@@ -29,16 +29,19 @@ jobs:
       - name: Install
         run: pnpm i
       - name: Build
-        run: pnpm build
+        run: pnpm run build
+      - name: Lint
+        run: pnpm run lint
       - name: Test
-        run: pnpm test
-      - name: Test
-        run: pnpm lint
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v2
+        run: pnpm run test
+        env:
+          FORCE_COLOR: 1
+      - name: Upload Test Results Node.js ${{ matrix.node-version }}
+        if: matrix.node-version == '18.x'
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
         with:
-          name: Test Results (${{ matrix.node-version }})
+          name: Test Results
           path: junit.xml
   event_file:
     name: 'Event File'
