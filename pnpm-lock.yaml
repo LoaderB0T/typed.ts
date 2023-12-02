@@ -7,10 +7,10 @@ settings:
 devDependencies:
   '@awdware/eslint-config-base':
     specifier: ^1.0.0
-    version: 1.1.0(@typescript-eslint/eslint-plugin@6.9.1)(@typescript-eslint/parser@6.13.1)(eslint@8.53.0)
+    version: 1.2.0(@typescript-eslint/eslint-plugin@6.9.1)(@typescript-eslint/parser@6.13.1)(eslint-plugin-unused-imports@3.0.0)(eslint@8.53.0)
   '@awdware/eslint-config-nodejs':
     specifier: ^1.0.0
-    version: 1.0.0(@awdware/eslint-config-base@1.1.0)
+    version: 1.0.0(@awdware/eslint-config-base@1.2.0)
   '@awdware/prettier-config':
     specifier: ^1.0.0
     version: 1.0.0(prettier@3.1.0)
@@ -75,24 +75,26 @@ packages:
       '@jridgewell/trace-mapping': 0.3.20
     dev: true
 
-  /@awdware/eslint-config-base@1.1.0(@typescript-eslint/eslint-plugin@6.9.1)(@typescript-eslint/parser@6.13.1)(eslint@8.53.0):
-    resolution: {integrity: sha512-01D5T535aaykDKQ2HjcJAry6xJQHn7jtuAkUqh3G/jRzVT1Z4Xglxkc/29I+AlauRqqVzIwOD9cJ9ho2R7DAMw==}
+  /@awdware/eslint-config-base@1.2.0(@typescript-eslint/eslint-plugin@6.9.1)(@typescript-eslint/parser@6.13.1)(eslint-plugin-unused-imports@3.0.0)(eslint@8.53.0):
+    resolution: {integrity: sha512-X+0kBvjl1el/kiDQ0jiUoD0RZVPtJmSRmlRwARAGIMqYzacVHoghXDrw1QGnYwvSgSYK0aG5xBuGYRB1GPbuRw==}
     peerDependencies:
-      '@typescript-eslint/eslint-plugin': '>= 4'
-      '@typescript-eslint/parser': '>= 4'
-      eslint: '>= 7'
+      '@typescript-eslint/eslint-plugin': '>= 6'
+      '@typescript-eslint/parser': '>= 6'
+      eslint: '>= 8'
+      eslint-plugin-unused-imports: '>= 3'
     dependencies:
       '@typescript-eslint/eslint-plugin': 6.9.1(@typescript-eslint/parser@6.13.1)(eslint@8.53.0)(typescript@5.2.2)
       '@typescript-eslint/parser': 6.13.1(eslint@8.53.0)(typescript@5.2.2)
       eslint: 8.53.0
+      eslint-plugin-unused-imports: 3.0.0(@typescript-eslint/eslint-plugin@6.9.1)(eslint@8.53.0)
     dev: true
 
-  /@awdware/eslint-config-nodejs@1.0.0(@awdware/eslint-config-base@1.1.0):
+  /@awdware/eslint-config-nodejs@1.0.0(@awdware/eslint-config-base@1.2.0):
     resolution: {integrity: sha512-UZb2XAdWd5QU20Ae42BeAG+qlNUDaTGs8Fc1/Tm5YrqRyZd7rY0TUl/wA4pDJo1R26fea3yyuI2hp7vHR5lfPw==}
     peerDependencies:
       '@awdware/eslint-config-base': '>= 1'
     dependencies:
-      '@awdware/eslint-config-base': 1.1.0(@typescript-eslint/eslint-plugin@6.9.1)(@typescript-eslint/parser@6.13.1)(eslint@8.53.0)
+      '@awdware/eslint-config-base': 1.2.0(@typescript-eslint/eslint-plugin@6.9.1)(@typescript-eslint/parser@6.13.1)(eslint-plugin-unused-imports@3.0.0)(eslint@8.53.0)
     dev: true
 
   /@awdware/prettier-config@1.0.0(prettier@3.1.0):
@@ -1682,6 +1684,26 @@ packages:
   /escape-string-regexp@4.0.0:
     resolution: {integrity: sha512-TtpcNJ3XAzx3Gq8sWRzJaVajRs0uVxA2YAkdb1jm2YkPz4G6egUFAyA3n5vtEIZefPk5Wa4UXbKuS5fKkJWdgA==}
     engines: {node: '>=10'}
+    dev: true
+
+  /eslint-plugin-unused-imports@3.0.0(@typescript-eslint/eslint-plugin@6.9.1)(eslint@8.53.0):
+    resolution: {integrity: sha512-sduiswLJfZHeeBJ+MQaG+xYzSWdRXoSw61DpU13mzWumCkR0ufD0HmO4kdNokjrkluMHpj/7PJeN35pgbhW3kw==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    peerDependencies:
+      '@typescript-eslint/eslint-plugin': ^6.0.0
+      eslint: ^8.0.0
+    peerDependenciesMeta:
+      '@typescript-eslint/eslint-plugin':
+        optional: true
+    dependencies:
+      '@typescript-eslint/eslint-plugin': 6.9.1(@typescript-eslint/parser@6.13.1)(eslint@8.53.0)(typescript@5.2.2)
+      eslint: 8.53.0
+      eslint-rule-composer: 0.3.0
+    dev: true
+
+  /eslint-rule-composer@0.3.0:
+    resolution: {integrity: sha512-bt+Sh8CtDmn2OajxvNO+BX7Wn4CIWMpTRm3MaiKPCQcnnlm0CS2mhui6QaoeQugs+3Kj2ESKEEGJUdVafwhiCg==}
+    engines: {node: '>=4.0.0'}
     dev: true
 
   /eslint-scope@7.2.2:
