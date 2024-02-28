@@ -9,7 +9,7 @@ import {
   FullTypingOptions,
   PartialTypingOptions,
   SentanceTypingOptions
-} from './types/options';
+} from './types/options.js';
 import { Backspace, Sentance, Wait } from './types/queue-item.js';
 import { ResultItem } from './types/result-item.js';
 import { isSpecialChar } from './utils/is-special-char.js';
