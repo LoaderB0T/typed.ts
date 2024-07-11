@@ -1,6 +1,6 @@
 {
   "name": "typed.ts",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Realistic typing simulations in TypeScript",
   "author": {
     "name": "Janik Schumacher (LoaderB0T)",
@@ -17,11 +17,11 @@
   "type": "module",
   "exports": {
     ".": {
-      "import": "./lib/esm/index.js",
-      "require": "./lib/cjs/index.js"
+      "import": "./lib/esm/src/index.js",
+      "require": "./lib/cjs/src/index.js"
     }
   },
-  "main": "./lib/cjs/index.js",
+  "main": "./lib/cjs/src/index.js",
   "files": [
     "lib"
   ],
