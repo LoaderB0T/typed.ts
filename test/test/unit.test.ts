@@ -1,8 +1,9 @@
 import { describe, expect, test, beforeEach, afterEach } from '@jest/globals';
 import { Typed } from '../../src/typed.js';
 import { randomStub, resetRandomStub } from '../random-stub.js';
+import { DEFAULT_PART_NAME } from '../../src/utils/default-part-name.js';
 
-describe('', () => {
+describe('UnitTest', () => {
   let typed: Typed;
   let result: string;
   let originalRandom: typeof Math.random;
@@ -18,7 +19,7 @@ describe('', () => {
       },
       errorDelay: 0,
       eraseDelay: 0,
-      perLetterDelay: 1
+      perLetterDelay: 1,
     });
     typed['_fastForwardOptions'].perLetterDelay = 0;
     typed['_fastForwardOptions'].eraseDelay = 1;
@@ -31,12 +32,43 @@ describe('', () => {
   test('manual ff testing', async () => {
     typed.type('hello');
     typed.fastForward();
+    // prettier-ignore
     expect(typed['_ffQueue']['_items']).toEqual([
-      { type: 'sentance', text: 'h', className: undefined, options: undefined },
-      { type: 'sentance', text: 'e', className: undefined, options: undefined },
-      { type: 'sentance', text: 'l', className: undefined, options: undefined },
-      { type: 'sentance', text: 'l', className: undefined, options: undefined },
-      { type: 'sentance', text: 'o', className: undefined, options: undefined }
+      { type: 'sentance', text: 'h', className: undefined, options: undefined, partName: DEFAULT_PART_NAME },
+      { type: 'sentance', text: 'e', className: undefined, options: undefined, partName: DEFAULT_PART_NAME },
+      { type: 'sentance', text: 'l', className: undefined, options: undefined, partName: DEFAULT_PART_NAME },
+      { type: 'sentance', text: 'l', className: undefined, options: undefined, partName: DEFAULT_PART_NAME },
+      { type: 'sentance', text: 'o', className: undefined, options: undefined, partName: DEFAULT_PART_NAME },
+    ]);
+  });
+
+  test('manual named parts ff testing', async () => {
+    const typed2 = new Typed({
+      callback: str => {},
+      errorDelay: 0,
+      eraseDelay: 0,
+      perLetterDelay: 1,
+      namedParts: ['part1', 'part2', 'part3'],
+    });
+    typed2.type('hello', { namedPart: 'part1' });
+    typed2.type('world', { namedPart: 'part2' });
+    typed2.type('!', { namedPart: 'part3' });
+    typed2.fastForward();
+    // prettier-ignore
+    expect(typed2['_ffQueue']['_items']).toEqual([
+      { type: 'sentance', text: 'h', className: undefined, options: undefined, partName: 'part1' },
+      { type: 'sentance', text: 'e', className: undefined, options: undefined, partName: 'part1' },
+      { type: 'sentance', text: 'l', className: undefined, options: undefined, partName: 'part1' },
+      { type: 'sentance', text: 'l', className: undefined, options: undefined, partName: 'part1' },
+      { type: 'sentance', text: 'o', className: undefined, options: undefined, partName: 'part1' },
+
+      { type: 'sentance', text: 'w', className: undefined, options: undefined, partName: 'part2' },
+      { type: 'sentance', text: 'o', className: undefined, options: undefined, partName: 'part2' },
+      { type: 'sentance', text: 'r', className: undefined, options: undefined, partName: 'part2' },
+      { type: 'sentance', text: 'l', className: undefined, options: undefined, partName: 'part2' },
+      { type: 'sentance', text: 'd', className: undefined, options: undefined, partName: 'part2' },
+
+      { type: 'sentance', text: '!', className: undefined, options: undefined, partName: 'part3' },
     ]);
   });
 });

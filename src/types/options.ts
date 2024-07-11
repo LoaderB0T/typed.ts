@@ -1,15 +1,36 @@
 import { MinMax } from './min-max.js';
 
-export type CustomUpdateSetup<T> = {
-  setUp: () => T;
-  update: (updater: T, text: string) => void;
+export type CustomUpdateSetup<Updater, NamedParts> = {
+  setUp: () => Updater;
+  update: (updater: Updater, text: NamedPartsToResultType<NamedParts>) => void;
+  namedParts?: NamedParts;
 };
 
-export type RequiredTypingOptions = {
-  callback: (text: string) => void;
+// @internal
+export type NamedPartString = { [part: string]: string };
+
+export type NamedPartEntry<NamedParts> = NamedParts extends string[] ? NamedParts[number] : never;
+
+export type NamedPartsToResultType<NamedParts> = NamedParts extends string[]
+  ? NamedParts['length'] extends 0
+    ? string
+    : NamedParts extends never
+      ? string
+      : { [K in NamedPartEntry<NamedParts>]: string }
+  : string;
+
+export type RequiredTypingOptions<NamedParts> = {
+  callback: (text: NamedPartsToResultType<NamedParts>) => void;
 };
 
-export type TypingOptions = {
+export type NamedPartsTypingOptions<NamedParts> = {
+  namedParts?: NamedParts;
+};
+
+export type TypingOptions<
+  NamedParts extends string[],
+  NamedPart extends NamedPartEntry<NamedParts>,
+> = {
   /**
    * The delay between typing characters. Can be a number or a MinMax object to randomize the delay.
    * @default { min: 40, max: 150 }
@@ -35,14 +56,28 @@ export type TypingOptions = {
    * @default 'en'
    */
   locale: string;
+
+  namedPart?: NamedPart;
 };
 
-export type EraseOptions = {
+export type EraseOptions<
+  NamedParts extends string[],
+  NamedPart extends NamedPartEntry<NamedParts>,
+> = {
   /**
    * The delay between erasing characters. Can be a number or a MinMax object to randomize the delay.
    * @default { min: 150, max: 250 }
    */
   eraseDelay: number | MinMax;
+
+  namedPart?: NamedPart;
+};
+
+export type WaitOptions<
+  NamedParts extends string[],
+  NamedPart extends NamedPartEntry<NamedParts>,
+> = {
+  namedPart?: NamedPart;
 };
 
 export type ClassNameOptions = {
@@ -53,8 +88,47 @@ export type ClassNameOptions = {
   className: string;
 };
 
-export type FullTypingOptions = TypingOptions & RequiredTypingOptions & EraseOptions;
-export type PartialTypingOptions = Partial<FullTypingOptions>;
-export type ConstructorTypingOptions = Partial<TypingOptions> & RequiredTypingOptions & Partial<EraseOptions>;
-export type SentanceTypingOptions = Partial<TypingOptions> & Partial<EraseOptions> & Partial<ClassNameOptions>;
-export type EraseTypingOptions = Partial<EraseOptions>;
+export type FullTypingOptions<
+  NamedParts extends string[],
+  NamedPart extends NamedPartEntry<NamedParts>,
+> = TypingOptions<NamedParts, NamedPart> &
+  RequiredTypingOptions<NamedParts> &
+  EraseOptions<NamedParts, NamedPart> &
+  WaitOptions<NamedParts, NamedPart> &
+  NamedPartsTypingOptions<NamedParts> &
+  NamedPartsTypingOptions<NamedParts>;
+
+export type PartialTypingOptions<
+  NamedParts extends string[],
+  NamedPart extends NamedPartEntry<NamedParts>,
+> = Partial<FullTypingOptions<NamedParts, NamedPart>>;
+
+export type ConstructorTypingOptions<
+  NamedParts extends string[],
+  NamedPart extends NamedPartEntry<NamedParts>,
+> = Partial<Omit<TypingOptions<NamedParts, never>, 'namedPart'>> &
+  RequiredTypingOptions<NamedParts> &
+  NamedPartsTypingOptions<NamedParts> &
+  Partial<EraseOptions<NamedParts, NamedPart>>;
+
+export type FactoryTypingOptions = Omit<
+  ConstructorTypingOptions<string[], never>,
+  'callback' | 'namedParts' | 'namedPart'
+>;
+
+export type SentanceTypingOptions<
+  NamedParts extends string[],
+  NamedPart extends NamedPartEntry<NamedParts>,
+> = Partial<TypingOptions<NamedParts, NamedPart>> &
+  Partial<EraseOptions<NamedParts, NamedPart>> &
+  Partial<ClassNameOptions>;
+
+export type EraseTypingOptions<
+  NamedParts extends string[],
+  NamedPart extends NamedPartEntry<NamedParts>,
+> = Partial<EraseOptions<NamedParts, NamedPart>>;
+
+export type WaitTypingOptions<
+  NamedParts extends string[],
+  NamedPart extends NamedPartEntry<NamedParts>,
+> = Partial<WaitOptions<NamedParts, NamedPart>>;

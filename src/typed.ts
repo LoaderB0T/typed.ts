@@ -6,9 +6,14 @@ import {
   ConstructorTypingOptions,
   CustomUpdateSetup,
   EraseTypingOptions,
+  FactoryTypingOptions,
   FullTypingOptions,
+  NamedPartEntry,
+  NamedPartsToResultType,
+  NamedPartString,
   PartialTypingOptions,
-  SentanceTypingOptions
+  SentanceTypingOptions,
+  WaitTypingOptions,
 } from './types/options.js';
 import { Backspace, Sentance, Wait } from './types/queue-item.js';
 import { ResultItem } from './types/result-item.js';
@@ -16,9 +21,10 @@ import { isSpecialChar } from './utils/is-special-char.js';
 import { wait } from './utils/wait.js';
 import { Letter } from './types/letter.js';
 import { Queue } from './types/queue.js';
+import { DEFAULT_PART_NAME } from './utils/default-part-name.js';
 
-export class Typed<T = never> {
-  private readonly setupUpdater?: T;
+export class Typed<Updater = never, const NamedParts extends string[] = never> {
+  private readonly _setupUpdater?: Updater;
 
   /**
    * Creates a factory function that can be used to create Typed instances with a custom setup.
@@ -39,24 +45,27 @@ export class Typed<T = never> {
    * typed.text.subscribe(text => console.log(text));
    * ```
    */
-  public static factory<T>(customOptions: CustomUpdateSetup<T>) {
-    return (options: Omit<ConstructorTypingOptions, 'callback'>) => new Typed<T>(options, customOptions);
+  public static factory<Updater, const NamedParts extends string[] = never>(
+    customOptions: CustomUpdateSetup<Updater, NamedParts>
+  ) {
+    return (options?: FactoryTypingOptions) =>
+      new Typed<Updater, NamedParts>(options ?? {}, customOptions);
   }
 
   /**
    * Returns the text data structure that was configured using the factory function.
    * @throws If the factory function was not used to create this instance.
    */
-  public get text(): T {
-    if (!this.setupUpdater) {
+  public get text(): Updater {
+    if (!this._setupUpdater) {
       throw new Error('To use this property, use the Typed.factory() function.');
     }
-    return this.setupUpdater;
+    return this._setupUpdater;
   }
 
   private readonly _resetter = new Resetter();
   private readonly _randomChars = new RandomChars();
-  private readonly _options: ConstructorTypingOptions;
+  private readonly _options: ConstructorTypingOptions<NamedParts, never>;
   private readonly _typeQueue: Queue = new Queue(this._resetter);
   private readonly _ffQueue: Queue = new Queue(this._resetter);
   private _queue = this._typeQueue;
@@ -65,26 +74,32 @@ export class Typed<T = never> {
   private _lettersSinceLastError: number = 0;
   private readonly _endResultItems: ResultItem[] = [];
 
-  private readonly _fastForwardOptions: PartialTypingOptions = {
+  private readonly _fastForwardOptions: PartialTypingOptions<NamedParts, never> = {
     perLetterDelay: { min: 10, max: 20 },
     eraseDelay: { min: 10, max: 20 },
-    errorDelay: { min: 100, max: 200 }
+    errorDelay: { min: 100, max: 200 },
   };
 
-  constructor(options: ConstructorTypingOptions);
+  constructor(options: ConstructorTypingOptions<NamedParts, never>);
   // @internal
-  constructor(options: Omit<ConstructorTypingOptions, 'callback'>, customSetup: CustomUpdateSetup<T>);
-  constructor(options: ConstructorTypingOptions, customSetup?: CustomUpdateSetup<T>) {
+  constructor(options: FactoryTypingOptions, customSetup: CustomUpdateSetup<Updater, NamedParts>);
+  constructor(
+    options: ConstructorTypingOptions<NamedParts, never>,
+    customSetup?: CustomUpdateSetup<Updater, NamedParts>
+  ) {
+    this._options = options;
+
     if (customSetup) {
       const setupUpdater = customSetup.setUp();
-      this.setupUpdater = setupUpdater;
-      options.callback = (text: string) => customSetup?.update(setupUpdater, text);
+      this._setupUpdater = setupUpdater;
+      options.callback = (text: NamedPartsToResultType<NamedParts>) =>
+        customSetup?.update(setupUpdater, text);
+      this._options.namedParts = customSetup.namedParts;
     }
-    this._options = options;
   }
 
-  private get options(): FullTypingOptions {
-    const defaultOptions: FullTypingOptions = {
+  private get options(): FullTypingOptions<NamedParts, never> {
+    const defaultOptions: FullTypingOptions<NamedParts, never> = {
       callback: () => {
         // do nothing
       },
@@ -93,10 +108,12 @@ export class Typed<T = never> {
       errorMultiplier: 1,
       noSpecialCharErrors: false,
       locale: 'en',
-      perLetterDelay: { min: 40, max: 150 }
+      perLetterDelay: { min: 40, max: 150 },
     };
 
-    const ffOptions: PartialTypingOptions = this._fastForward ? this._fastForwardOptions : {};
+    const ffOptions: PartialTypingOptions<NamedParts, never> = this._fastForward
+      ? this._fastForwardOptions
+      : {};
 
     const currentQueueItemOptions = this._queue.item?.options ?? {};
 
@@ -104,7 +121,7 @@ export class Typed<T = never> {
       ...defaultOptions,
       ...this._options,
       ...currentQueueItemOptions,
-      ...ffOptions
+      ...ffOptions,
     };
   }
 
@@ -150,14 +167,20 @@ export class Typed<T = never> {
    * @param options The options for typing.
    * @returns The Typed instance.
    */
-  public type(sentance: string, options?: SentanceTypingOptions): Typed<T> {
+  public type<NamedPart extends NamedPartEntry<NamedParts>>(
+    sentance: string,
+    options?: SentanceTypingOptions<NamedParts, NamedPart>
+  ): Typed<Updater, NamedParts> {
+    const partName = options?.namedPart ?? DEFAULT_PART_NAME;
+
     this._typeQueue.add({
       type: 'sentance',
+      partName,
       text: sentance,
       options,
-      className: options?.className
+      className: options?.className,
     });
-    this.addLetterTo(sentance, this._endResultItems, options?.className);
+    this.addLetterTo(sentance, this._endResultItems, partName, options?.className);
     return this;
   }
 
@@ -167,13 +190,18 @@ export class Typed<T = never> {
    * @param options The options for erasing.
    * @returns The Typed instance.
    */
-  public backspace(length: number, options?: EraseTypingOptions): Typed<T> {
+  public backspace<NamedPart extends NamedPartEntry<NamedParts>>(
+    length: number,
+    options?: EraseTypingOptions<NamedParts, NamedPart>
+  ): Typed<Updater, NamedParts> {
+    const partName = options?.namedPart ?? DEFAULT_PART_NAME;
     this._typeQueue.add({
       type: 'backspace',
+      partName,
       length,
-      options
+      options,
     });
-    this.deleteLetterFrom(this._endResultItems, length);
+    this.deleteLetterFrom(this._endResultItems, partName, length);
     return this;
   }
 
@@ -182,10 +210,14 @@ export class Typed<T = never> {
    * @param delay The delay in milliseconds.
    * @returns The Typed instance.
    */
-  public wait(delay: number): Typed<T> {
+  public wait<NamedPart extends NamedPartEntry<NamedParts>>(
+    delay: number,
+    options?: WaitTypingOptions<NamedParts, NamedPart>
+  ): Typed<Updater, NamedParts> {
     this._typeQueue.add({
       type: 'wait',
-      delay
+      partName: options?.namedPart ?? DEFAULT_PART_NAME,
+      delay,
     });
     return this;
   }
@@ -211,11 +243,29 @@ export class Typed<T = never> {
     if (this._fastForward) {
       return;
     }
+
+    const namedParts = this.options.namedParts?.length
+      ? this.options.namedParts
+      : [DEFAULT_PART_NAME];
+
+    this._ffQueue.clear();
+    this._queue = this._ffQueue;
+
+    namedParts.forEach(partName => this.ff(partName));
+
+    this._fastForward = true;
+    this._resetter.singleReset();
+  }
+
+  private ff(partName: string) {
+    const resultItemsForPart = this._resultItems.filter(item => item.partName === partName);
+    const endResultItemsForPart = this._endResultItems.filter(item => item.partName === partName);
+
     let matchingLetterCount = 0;
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const currentTextAtIndex = this.getTextAtIndex(this._resultItems, matchingLetterCount);
-      const endResultTextAtIndex = this.getTextAtIndex(this._endResultItems, matchingLetterCount);
+      const currentTextAtIndex = this.getTextAtIndex(resultItemsForPart, matchingLetterCount);
+      const endResultTextAtIndex = this.getTextAtIndex(endResultItemsForPart, matchingLetterCount);
       if (!currentTextAtIndex || !endResultTextAtIndex) {
         break;
       }
@@ -228,32 +278,27 @@ export class Typed<T = never> {
         break;
       }
     }
-
-    this._ffQueue.clear();
-    this._queue = this._ffQueue;
-
-    const currentTextWithoutClasses = this.getCurrentText(this._resultItems, false);
+    const currentTextWithoutClasses = this.getPartText(resultItemsForPart, false);
     const currentTextLength = currentTextWithoutClasses.length;
     const neededBackspaces = currentTextLength - matchingLetterCount;
     if (neededBackspaces) {
       this._ffQueue.add({
         type: 'backspace',
-        length: neededBackspaces
+        partName,
+        length: neededBackspaces,
       });
     }
-    const resultTextLength = this.getCurrentText(this._endResultItems, false).length;
+    const resultTextLength = this.getPartText(endResultItemsForPart, false).length;
     for (let i = 0; i < resultTextLength - matchingLetterCount; i++) {
-      const letter = this.getTextAtIndex(this._endResultItems, i + matchingLetterCount)!;
+      const letter = this.getTextAtIndex(endResultItemsForPart, i + matchingLetterCount)!;
       this._ffQueue.add({
         type: 'sentance',
+        partName,
         text: letter.letter,
         options: undefined,
-        className: letter.className
+        className: letter.className,
       });
     }
-
-    this._fastForward = true;
-    this._resetter.singleReset();
   }
 
   private getTextAtIndex(resultItems: ResultItem[], index: number): Letter | undefined {
@@ -290,9 +335,9 @@ export class Typed<T = never> {
     const queue = this._queue;
     const currentSentance = queue.item as Sentance;
     const currentLetter = currentSentance.text[queue.detailIndex];
-    await this.maybeDoError(currentSentance, 0, queue);
+    await this.maybeDoError(currentSentance, 0, currentSentance.partName, queue);
     if (queue === this._queue) {
-      this.addLetter(currentLetter, currentSentance.className);
+      this.addLetter(currentLetter, currentSentance.partName, currentSentance.className);
       this._lettersSinceLastError++;
       this.updateText();
       await wait(this.options.perLetterDelay, this._resetter);
@@ -304,7 +349,7 @@ export class Typed<T = never> {
     const queue = this._queue;
     const currentBackspaceItem = queue.item as Backspace;
     if (currentBackspaceItem.length > 0) {
-      this.deleteLetter();
+      this.deleteLetter(currentBackspaceItem.partName);
       this.updateText();
       await wait(this.options.eraseDelay, this._resetter);
     }
@@ -358,25 +403,38 @@ export class Typed<T = never> {
     return willError;
   }
 
-  private async maybeDoError(currentSentance: Sentance, currentWrongLettersCount: number, queue: Queue): Promise<void> {
+  private async maybeDoError(
+    currentSentance: Sentance,
+    currentWrongLettersCount: number,
+    partName: string,
+    queue: Queue
+  ): Promise<void> {
     const wasFF = this._fastForward;
     const intendedChar = currentSentance.text[queue.detailIndex + currentWrongLettersCount];
-    const nearbyChar = this._randomChars.getRandomCharCloseToChar(intendedChar, this.options.locale);
+    const nearbyChar = this._randomChars.getRandomCharCloseToChar(
+      intendedChar,
+      this.options.locale
+    );
 
-    const shouldError = await this.shouldError(currentWrongLettersCount, intendedChar, wasFF, nearbyChar);
+    const shouldError = await this.shouldError(
+      currentWrongLettersCount,
+      intendedChar,
+      wasFF,
+      nearbyChar
+    );
     if (!shouldError || !nearbyChar) {
       return;
     }
 
     this._lettersSinceLastError = 0;
-    this.addLetter(nearbyChar, currentSentance.className);
+    this.addLetter(nearbyChar, partName, currentSentance.className);
     this.updateText();
     await wait(this.options.perLetterDelay, this._resetter);
     if (!this._fastForward || wasFF) {
-      await this.maybeDoError(currentSentance, currentWrongLettersCount + 1, queue);
+      await this.maybeDoError(currentSentance, currentWrongLettersCount + 1, partName, queue);
     }
     if (!this._fastForward || wasFF) {
-      this.deleteLetter();
+      this.deleteLetter(partName);
       this.updateText();
     }
     if (!this._fastForward || wasFF) {
@@ -401,31 +459,39 @@ export class Typed<T = never> {
     return errorProbability * this.options.errorMultiplier;
   }
 
-  private addLetter(letter: string, className?: string) {
-    this.addLetterTo(letter, this._resultItems, className);
+  private addLetter(letter: string, partName: string, className?: string) {
+    this.addLetterTo(letter, this._resultItems, partName, className);
   }
 
-  private addLetterTo(letter: string, result: ResultItem[], className?: string) {
+  private addLetterTo(letter: string, result: ResultItem[], partName: string, className?: string) {
     const lastResultItem = result[result.length - 1];
-    if (lastResultItem && lastResultItem.className === className) {
+    if (
+      lastResultItem &&
+      lastResultItem.className === className &&
+      lastResultItem.partName === partName
+    ) {
       lastResultItem.text += letter;
     } else {
       result.push({
         text: letter,
-        className
+        className,
+        partName,
       });
     }
   }
 
-  private deleteLetter() {
-    this.deleteLetterFrom(this._resultItems);
+  private deleteLetter(partName: string) {
+    this.deleteLetterFrom(this._resultItems, partName);
   }
 
-  private deleteLetterFrom(result: ResultItem[], length: number = 1) {
+  private deleteLetterFrom(result: ResultItem[], partName: string, length: number = 1) {
     let needsAnotherDelete = false;
+
+    const filteredResult = result.filter(item => item.partName === partName);
+
     do {
       let deleteAmountForThisItem = length;
-      const lastResultItem = result[result.length - 1];
+      const lastResultItem = filteredResult[filteredResult.length - 1];
       const maxDeletableAmount = lastResultItem.text.length;
       if (maxDeletableAmount < length) {
         deleteAmountForThisItem = maxDeletableAmount;
@@ -435,7 +501,11 @@ export class Typed<T = never> {
       if (lastResultItem) {
         lastResultItem.text = lastResultItem.text.slice(0, -deleteAmountForThisItem);
         if (!lastResultItem.text) {
-          result.pop();
+          filteredResult.pop();
+          const indexInResult = result.indexOf(lastResultItem);
+          if (indexInResult !== -1) {
+            result.splice(indexInResult, 1);
+          }
         }
       } else {
         if (this._resetter.isReset) {
@@ -453,11 +523,15 @@ export class Typed<T = never> {
     }
     const text = this.getCurrentText(this._resultItems);
 
-    this.options.callback(text);
+    if (!this.options.namedParts?.length) {
+      this.options.callback(text[DEFAULT_PART_NAME] as NamedPartsToResultType<NamedParts>);
+    } else {
+      this.options.callback(text as NamedPartsToResultType<NamedParts>);
+    }
   }
 
-  private getCurrentText(result: ResultItem[], includeClasses = true) {
-    return result
+  private getPartText(part: ResultItem[], includeClasses = true): string {
+    return part
       .map(item => {
         if (item.className && includeClasses) {
           return `<span class="${item.className}">${item.text}</span>`;
@@ -466,5 +540,32 @@ export class Typed<T = never> {
         }
       })
       .join('');
+  }
+
+  private getCurrentText(result: ResultItem[], includeClasses = true): NamedPartString {
+    const parts = result.reduce(
+      (x, y) => {
+        (x[y.partName] = x[y.partName] || []).push(y);
+        return x;
+      },
+      {} as { [key: string]: ResultItem[] }
+    );
+
+    const resultText: NamedPartString = {};
+
+    for (const [partName, part] of Object.entries(parts)) {
+      if (!part) {
+        throw new Error(`Part ${partName} is empty`);
+      }
+      resultText[partName] = this.getPartText(part, includeClasses);
+    }
+
+    for (const part of this.options.namedParts ?? []) {
+      if (!resultText[part]) {
+        resultText[part] = '';
+      }
+    }
+
+    return resultText;
   }
 }

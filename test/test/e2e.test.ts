@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach, afterEach } from '@jest/globals';
 import { Typed } from '../../src/typed.js';
 import { randomStub, resetRandomStub } from '../random-stub.js';
 
-describe('', () => {
+describe('e2e', () => {
   let typed: Typed;
   let result: string;
   let originalRandom: typeof Math.random;
@@ -18,7 +18,7 @@ describe('', () => {
       },
       errorDelay: 0,
       eraseDelay: 0,
-      perLetterDelay: 1
+      perLetterDelay: 1,
     });
     typed['_fastForwardOptions'].perLetterDelay = 0;
     typed['_fastForwardOptions'].eraseDelay = 1;
@@ -28,7 +28,7 @@ describe('', () => {
     Math.random = originalRandom;
   });
 
-  test('hello world', async () => {
+  test('verify random stub', async () => {
     expect(Math.random()).toBe(0.908788990863389);
     expect(Math.random()).toBe(0.7982002517390028);
     expect(Math.random()).toBe(0.4753399903420179);
@@ -125,5 +125,42 @@ describe('', () => {
     };
     await typed.run();
     expect(result).toBe('123456');
+  });
+
+  test('Named Parts', async () => {
+    let res1 = '';
+    let res2 = '';
+    let res3 = '';
+
+    const named_typed = new Typed({
+      namedParts: ['text_a', 'text_b', 'text_c'],
+      callback: str => {
+        res1 = str.text_a;
+        res2 = str.text_b;
+        res3 = str.text_c;
+
+        console.log(res1 + res2 + res3);
+      },
+      errorDelay: 0,
+      eraseDelay: 0,
+      perLetterDelay: 1,
+    });
+
+    const t1 = 'Hello';
+    const t2 = ' World';
+    const t3 = '!';
+
+    named_typed.type(t1, { namedPart: 'text_a' });
+    named_typed.type(t2, { namedPart: 'text_b' });
+    named_typed.type(t3, { namedPart: 'text_c' });
+    named_typed.backspace(t1.length, { namedPart: 'text_a' });
+    named_typed.backspace(t2.length, { namedPart: 'text_b' });
+    named_typed.backspace(t3.length, { namedPart: 'text_c' });
+
+    await named_typed.run();
+
+    expect(res1).toBe('');
+    expect(res2).toBe('');
+    expect(res3).toBe('');
   });
 });

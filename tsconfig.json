@@ -3,12 +3,17 @@
     "target": "ES2019",
     "module": "ESNext",
     "baseUrl": "./",
-    "lib": ["ES2019", "ESNext"],
+    "lib": [
+      "es2023",
+      "ESNext"
+    ],
     "declaration": true,
     "outDir": "lib",
     "rootDir": ".",
     "strict": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "sourceMap": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
@@ -18,6 +23,11 @@
     "moduleResolution": "node",
     "stripInternal": true
   },
-  "include": ["src"],
-  "exclude": ["lib", "test"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "lib",
+    "test"
+  ]
 }
