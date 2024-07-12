@@ -33,7 +33,7 @@ describe('UnitTest', () => {
     typed.type('hello');
     typed.fastForward();
     // prettier-ignore
-    expect(typed['_ffQueue']['_items']).toEqual([
+    expect(typed['_ffQueue']['_queues'].get(DEFAULT_PART_NAME as never)!['_items']).toEqual([
       { type: 'sentance', text: 'h', className: undefined, options: undefined, partName: DEFAULT_PART_NAME },
       { type: 'sentance', text: 'e', className: undefined, options: undefined, partName: DEFAULT_PART_NAME },
       { type: 'sentance', text: 'l', className: undefined, options: undefined, partName: DEFAULT_PART_NAME },
@@ -54,20 +54,21 @@ describe('UnitTest', () => {
     typed2.type('world', { namedPart: 'part2' });
     typed2.type('!', { namedPart: 'part3' });
     typed2.fastForward();
-    // prettier-ignore
-    expect(typed2['_ffQueue']['_items']).toEqual([
+    expect(typed2['_ffQueue']['_queues'].get('part1')!['_items']).toEqual([
       { type: 'sentance', text: 'h', className: undefined, options: undefined, partName: 'part1' },
       { type: 'sentance', text: 'e', className: undefined, options: undefined, partName: 'part1' },
       { type: 'sentance', text: 'l', className: undefined, options: undefined, partName: 'part1' },
       { type: 'sentance', text: 'l', className: undefined, options: undefined, partName: 'part1' },
       { type: 'sentance', text: 'o', className: undefined, options: undefined, partName: 'part1' },
-
+    ]);
+    expect(typed2['_ffQueue']['_queues'].get('part2')!['_items']).toEqual([
       { type: 'sentance', text: 'w', className: undefined, options: undefined, partName: 'part2' },
       { type: 'sentance', text: 'o', className: undefined, options: undefined, partName: 'part2' },
       { type: 'sentance', text: 'r', className: undefined, options: undefined, partName: 'part2' },
       { type: 'sentance', text: 'l', className: undefined, options: undefined, partName: 'part2' },
       { type: 'sentance', text: 'd', className: undefined, options: undefined, partName: 'part2' },
-
+    ]);
+    expect(typed2['_ffQueue']['_queues'].get('part3')!['_items']).toEqual([
       { type: 'sentance', text: '!', className: undefined, options: undefined, partName: 'part3' },
     ]);
   });

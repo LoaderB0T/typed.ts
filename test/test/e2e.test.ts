@@ -138,8 +138,6 @@ describe('e2e', () => {
         res1 = str.text_a;
         res2 = str.text_b;
         res3 = str.text_c;
-
-        console.log(res1 + res2 + res3);
       },
       errorDelay: 0,
       eraseDelay: 0,
@@ -156,6 +154,7 @@ describe('e2e', () => {
     named_typed.backspace(t1.length, { namedPart: 'text_a' });
     named_typed.backspace(t2.length, { namedPart: 'text_b' });
     named_typed.backspace(t3.length, { namedPart: 'text_c' });
+    named_typed.wait(1000);
 
     await named_typed.run();
 

@@ -2,12 +2,14 @@ import { Resetter } from '../utils/resetter.js';
 import { QueueItem } from './queue-item.js';
 
 export class Queue {
+  private readonly _name: string;
   private readonly _resetter: Resetter;
   private readonly _items: QueueItem[] = [];
   private _queueIndex: number = 0;
   private _queueDetailIndex: number = 0;
 
-  constructor(resetter: Resetter) {
+  constructor(name: string, resetter: Resetter) {
+    this._name = name;
     this._resetter = resetter;
   }
 

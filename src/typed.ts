@@ -15,13 +15,14 @@ import {
   SentanceTypingOptions,
   WaitTypingOptions,
 } from './types/options.js';
-import { Backspace, Sentance, Wait } from './types/queue-item.js';
+import { Backspace, QueueItem, Sentance, Wait } from './types/queue-item.js';
 import { ResultItem } from './types/result-item.js';
 import { isSpecialChar } from './utils/is-special-char.js';
 import { wait } from './utils/wait.js';
 import { Letter } from './types/letter.js';
 import { Queue } from './types/queue.js';
 import { DEFAULT_PART_NAME } from './utils/default-part-name.js';
+import { QueueManager } from './types/queue-manager.js';
 
 export class Typed<Updater = never, const NamedParts extends string[] = never> {
   private readonly _setupUpdater?: Updater;
@@ -66,18 +67,18 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
   private readonly _resetter = new Resetter();
   private readonly _randomChars = new RandomChars();
   private readonly _options: ConstructorTypingOptions<NamedParts, never>;
-  private readonly _typeQueue: Queue = new Queue(this._resetter);
-  private readonly _ffQueue: Queue = new Queue(this._resetter);
-  private _queue = this._typeQueue;
+  private readonly _typeQueue: QueueManager<NamedParts>;
+  private readonly _ffQueue: QueueManager<NamedParts>;
+  private _queue: QueueManager<NamedParts>;
   private _resultItems: ResultItem[] = [];
   private _fastForward: boolean = false;
   private _lettersSinceLastError: number = 0;
   private readonly _endResultItems: ResultItem[] = [];
 
   private readonly _fastForwardOptions: PartialTypingOptions<NamedParts, never> = {
-    perLetterDelay: { min: 10, max: 20 },
-    eraseDelay: { min: 10, max: 20 },
-    errorDelay: { min: 100, max: 200 },
+    perLetterDelay: { min: 5, max: 20 },
+    eraseDelay: { min: 5, max: 10 },
+    errorMultiplier: 0,
   };
 
   constructor(options: ConstructorTypingOptions<NamedParts, never>);
@@ -94,11 +95,25 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
       this._setupUpdater = setupUpdater;
       options.callback = (text: NamedPartsToResultType<NamedParts>) =>
         customSetup?.update(setupUpdater, text);
-      this._options.namedParts = customSetup.namedParts;
+      if (customSetup.namedParts) {
+        this._options.namedParts = customSetup.namedParts;
+      }
     }
+
+    this._typeQueue = new QueueManager(
+      'type',
+      this._resetter,
+      this._options.namedParts ?? [DEFAULT_PART_NAME]
+    ) as QueueManager<NamedParts>;
+    this._ffQueue = new QueueManager(
+      'ff',
+      this._resetter,
+      this._options.namedParts ?? [DEFAULT_PART_NAME]
+    ) as QueueManager<NamedParts>;
+    this._queue = this._typeQueue;
   }
 
-  private get options(): FullTypingOptions<NamedParts, never> {
+  private getOptions(partName: string | false): FullTypingOptions<NamedParts, never> {
     const defaultOptions: FullTypingOptions<NamedParts, never> = {
       callback: () => {
         // do nothing
@@ -109,13 +124,14 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
       noSpecialCharErrors: false,
       locale: 'en',
       perLetterDelay: { min: 40, max: 150 },
+      namedParts: [DEFAULT_PART_NAME] as unknown as NamedParts,
     };
 
     const ffOptions: PartialTypingOptions<NamedParts, never> = this._fastForward
       ? this._fastForwardOptions
       : {};
 
-    const currentQueueItemOptions = this._queue.item?.options ?? {};
+    const currentQueueItemOptions = (partName && this._queue.get(partName).item?.options) || {};
 
     return {
       ...defaultOptions,
@@ -230,9 +246,7 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
     this._queue = this._typeQueue;
     this._typeQueue.resetIndices();
     this._resultItems = [];
-    while (await this.doQueueAction()) {
-      // do nothing
-    }
+    await this.doQueueAction();
   }
 
   /**
@@ -244,8 +258,8 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
       return;
     }
 
-    const namedParts = this.options.namedParts?.length
-      ? this.options.namedParts
+    const namedParts = this._options.namedParts?.length
+      ? this._options.namedParts
       : [DEFAULT_PART_NAME];
 
     this._ffQueue.clear();
@@ -317,69 +331,98 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
     return undefined;
   }
 
-  private async doQueueAction(): Promise<boolean> {
-    const currentQueueItem = this._queue.item;
-    switch (currentQueueItem.type) {
+  private async doSingleAction(partName: string, item: QueueItem): Promise<boolean> {
+    switch (item.type) {
       case 'sentance':
-        return this.typeLetter();
+        return this.typeLetter(partName);
       case 'backspace':
-        return this.typeBackspace();
+        return this.typeBackspace(partName);
       case 'wait':
-        return this.waitItem();
+        return this.waitItem(partName);
       default:
         throw new Error('Unknown queue item type');
     }
   }
 
-  private async typeLetter(): Promise<boolean> {
-    const queue = this._queue;
+  private async doQueueActionForPart(partName: string): Promise<boolean> {
+    let currentQueueItem = this._queue.get(partName).item;
+
+    while (currentQueueItem) {
+      const res = await this.doSingleAction(partName, currentQueueItem);
+
+      if (!res) {
+        return false;
+      }
+      currentQueueItem = this._queue.get(partName).item;
+    }
+
+    return true;
+  }
+
+  private async doQueueAction(): Promise<boolean> {
+    const { promise, resolve } = Promise.withResolvers<boolean>();
+
+    const namedParts = this.getOptions(false).namedParts;
+
+    const promises = namedParts.map(part => this.doQueueActionForPart(part));
+
+    Promise.all(promises).then(() => {
+      resolve(true);
+    });
+
+    return promise;
+  }
+
+  private async typeLetter(partName: string): Promise<boolean> {
+    const queue = this._queue.get(partName);
     const currentSentance = queue.item as Sentance;
     const currentLetter = currentSentance.text[queue.detailIndex];
     await this.maybeDoError(currentSentance, 0, currentSentance.partName, queue);
-    if (queue === this._queue) {
+    if (queue === this._queue.get(partName)) {
       this.addLetter(currentLetter, currentSentance.partName, currentSentance.className);
       this._lettersSinceLastError++;
       this.updateText();
-      await wait(this.options.perLetterDelay, this._resetter);
+      await wait(this.getOptions(partName).perLetterDelay, this._resetter);
     }
-    return this.incrementQueue(queue, currentSentance.text.length);
+    return this.incrementQueue(partName, queue, currentSentance.text.length);
   }
 
-  private async typeBackspace(): Promise<boolean> {
-    const queue = this._queue;
+  private async typeBackspace(partName: string): Promise<boolean> {
+    const queue = this._queue.get(partName);
     const currentBackspaceItem = queue.item as Backspace;
     if (currentBackspaceItem.length > 0) {
       this.deleteLetter(currentBackspaceItem.partName);
       this.updateText();
-      await wait(this.options.eraseDelay, this._resetter);
+      await wait(this.getOptions(partName).eraseDelay, this._resetter);
     }
-    return this.incrementQueue(queue, currentBackspaceItem.length);
+    return this.incrementQueue(partName, queue, currentBackspaceItem.length);
   }
 
-  private async waitItem(): Promise<boolean> {
-    const queue = this._queue;
+  private async waitItem(partName: string): Promise<boolean> {
+    const queue = this._queue.get(partName);
     if (!this._fastForward) {
       const currentWaitItem = queue.item as Wait;
       await wait(currentWaitItem.delay, this._resetter);
     }
-    return this.incrementQueue(queue);
+    return this.incrementQueue(partName, queue);
   }
 
-  private incrementQueue(queue: Queue, maxDetailIndex?: number) {
-    if (queue === this._queue) {
+  private incrementQueue(partName: string, queue: Queue, maxDetailIndex?: number) {
+    if (queue === this._queue.get(partName)) {
       return queue.increment(maxDetailIndex);
     } else {
-      return this.doQueueAction();
+      return true;
     }
   }
 
   private async shouldError(
+    partName: string,
     currentWrongLettersCount: number,
     intendedChar: string,
     wasFF: boolean,
     nearbyChar?: string
   ): Promise<boolean> {
-    const errorProbability = this.calculateErrorProbability(currentWrongLettersCount);
+    const errorProbability = this.calculateErrorProbability(partName, currentWrongLettersCount);
     let willError = true;
     if (Math.random() > errorProbability) {
       willError = false;
@@ -387,7 +430,7 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
     if (!intendedChar) {
       willError = false;
     }
-    if (this.options.noSpecialCharErrors && isSpecialChar(intendedChar)) {
+    if (this.getOptions(partName).noSpecialCharErrors && isSpecialChar(intendedChar)) {
       willError = false;
     }
     if (!nearbyChar) {
@@ -396,7 +439,7 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
     if (!willError || !nearbyChar) {
       if (currentWrongLettersCount > 0) {
         if (!this._fastForward || wasFF) {
-          await wait(this.options.errorDelay, this._resetter);
+          await wait(this.getOptions(partName).errorDelay, this._resetter);
         }
       }
     }
@@ -413,10 +456,11 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
     const intendedChar = currentSentance.text[queue.detailIndex + currentWrongLettersCount];
     const nearbyChar = this._randomChars.getRandomCharCloseToChar(
       intendedChar,
-      this.options.locale
+      this.getOptions(partName).locale
     );
 
     const shouldError = await this.shouldError(
+      partName,
       currentWrongLettersCount,
       intendedChar,
       wasFF,
@@ -429,7 +473,7 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
     this._lettersSinceLastError = 0;
     this.addLetter(nearbyChar, partName, currentSentance.className);
     this.updateText();
-    await wait(this.options.perLetterDelay, this._resetter);
+    await wait(this.getOptions(partName).perLetterDelay, this._resetter);
     if (!this._fastForward || wasFF) {
       await this.maybeDoError(currentSentance, currentWrongLettersCount + 1, partName, queue);
     }
@@ -438,11 +482,11 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
       this.updateText();
     }
     if (!this._fastForward || wasFF) {
-      await wait(this.options.eraseDelay, this._resetter);
+      await wait(this.getOptions(partName).eraseDelay, this._resetter);
     }
   }
 
-  private calculateErrorProbability(currentWrongLettersCount: number): number {
+  private calculateErrorProbability(partName: string, currentWrongLettersCount: number): number {
     let errorProbability = 0;
 
     // The more correct letters we typed, the more likely we are to make an error
@@ -456,7 +500,7 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
     }
 
     // Adjust based on the configured modifier
-    return errorProbability * this.options.errorMultiplier;
+    return errorProbability * this.getOptions(partName).errorMultiplier;
   }
 
   private addLetter(letter: string, partName: string, className?: string) {
@@ -491,28 +535,30 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
 
     do {
       let deleteAmountForThisItem = length;
-      const lastResultItem = filteredResult[filteredResult.length - 1];
-      const maxDeletableAmount = lastResultItem.text.length;
-      if (maxDeletableAmount < length) {
-        deleteAmountForThisItem = maxDeletableAmount;
-        length -= maxDeletableAmount;
-        needsAnotherDelete = true;
-      }
-      if (lastResultItem) {
-        lastResultItem.text = lastResultItem.text.slice(0, -deleteAmountForThisItem);
-        if (!lastResultItem.text) {
-          filteredResult.pop();
-          const indexInResult = result.indexOf(lastResultItem);
-          if (indexInResult !== -1) {
-            result.splice(indexInResult, 1);
-          }
-        }
-      } else {
+      const lastResultItem = filteredResult[filteredResult.length - 1] as ResultItem | undefined;
+
+      if (!lastResultItem) {
         if (this._resetter.isReset) {
           // might happen due to still running code during reset
           return;
         }
         throw new Error('Cannot delete letter from empty text');
+      }
+
+      const maxDeletableAmount = lastResultItem?.text.length ?? 0;
+      if (maxDeletableAmount < length) {
+        deleteAmountForThisItem = maxDeletableAmount;
+        length -= maxDeletableAmount;
+        needsAnotherDelete = true;
+      }
+
+      lastResultItem.text = lastResultItem.text.slice(0, -deleteAmountForThisItem);
+      if (!lastResultItem.text) {
+        filteredResult.pop();
+        const indexInResult = result.indexOf(lastResultItem);
+        if (indexInResult !== -1) {
+          result.splice(indexInResult, 1);
+        }
       }
     } while (needsAnotherDelete);
   }
@@ -523,10 +569,10 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
     }
     const text = this.getCurrentText(this._resultItems);
 
-    if (!this.options.namedParts?.length) {
-      this.options.callback(text[DEFAULT_PART_NAME] as NamedPartsToResultType<NamedParts>);
+    if (!this._options.namedParts?.length) {
+      this._options.callback(text[DEFAULT_PART_NAME] as NamedPartsToResultType<NamedParts>);
     } else {
-      this.options.callback(text as NamedPartsToResultType<NamedParts>);
+      this._options.callback(text as NamedPartsToResultType<NamedParts>);
     }
   }
 
@@ -560,7 +606,7 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
       resultText[partName] = this.getPartText(part, includeClasses);
     }
 
-    for (const part of this.options.namedParts ?? []) {
+    for (const part of this._options.namedParts ?? []) {
       if (!resultText[part]) {
         resultText[part] = '';
       }

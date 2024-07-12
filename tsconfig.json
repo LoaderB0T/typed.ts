@@ -5,7 +5,8 @@
     "baseUrl": "./",
     "lib": [
       "es2023",
-      "ESNext"
+      "ESNext",
+      "ESNext.Promise",
     ],
     "declaration": true,
     "outDir": "lib",

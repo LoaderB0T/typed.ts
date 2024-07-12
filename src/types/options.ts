@@ -24,7 +24,7 @@ export type RequiredTypingOptions<NamedParts> = {
 };
 
 export type NamedPartsTypingOptions<NamedParts> = {
-  namedParts?: NamedParts;
+  namedParts: NamedParts;
 };
 
 export type TypingOptions<
@@ -108,7 +108,7 @@ export type ConstructorTypingOptions<
   NamedPart extends NamedPartEntry<NamedParts>,
 > = Partial<Omit<TypingOptions<NamedParts, never>, 'namedPart'>> &
   RequiredTypingOptions<NamedParts> &
-  NamedPartsTypingOptions<NamedParts> &
+  Partial<NamedPartsTypingOptions<NamedParts>> &
   Partial<EraseOptions<NamedParts, NamedPart>>;
 
 export type FactoryTypingOptions = Omit<
