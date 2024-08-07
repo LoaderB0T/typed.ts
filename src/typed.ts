@@ -570,7 +570,7 @@ export class Typed<Updater = never, const NamedParts extends string[] = never> {
     const text = this.getCurrentText(this._resultItems);
 
     if (!this._options.namedParts?.length) {
-      this._options.callback(text[DEFAULT_PART_NAME] as NamedPartsToResultType<NamedParts>);
+      this._options.callback((text[DEFAULT_PART_NAME] as NamedPartsToResultType<NamedParts>) ?? '');
     } else {
       this._options.callback(text as NamedPartsToResultType<NamedParts>);
     }
