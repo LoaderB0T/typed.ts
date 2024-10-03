@@ -45,7 +45,7 @@ importers:
         specifier: ^3.5.10
         version: 3.5.10
       prettier:
-        specifier: ^3.3.2
+        specifier: ^3.3.3
         version: 3.3.3
       rimraf:
         specifier: ^6.0.1
