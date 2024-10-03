@@ -1,7 +1,6 @@
 import { keyboards } from './data/keyboards.js';
-import { RandomChars } from './utils/random-char.js';
-import { Resetter } from './utils/resetter.js';
 import { Keyboard } from './types/keyboard.js';
+import { Letter } from './types/letter.js';
 import {
   ConstructorTypingOptions,
   CustomUpdateSetup,
@@ -11,11 +10,12 @@ import {
   SentanceTypingOptions
 } from './types/options.js';
 import { Backspace, Sentance, Wait } from './types/queue-item.js';
+import { Queue } from './types/queue.js';
 import { ResultItem } from './types/result-item.js';
 import { isSpecialChar } from './utils/is-special-char.js';
+import { RandomChars } from './utils/random-char.js';
+import { Resetter } from './utils/resetter.js';
 import { wait } from './utils/wait.js';
-import { Letter } from './types/letter.js';
-import { Queue } from './types/queue.js';
 
 export class Typed<T = never> {
   private readonly setupUpdater?: T;
@@ -212,7 +212,7 @@ export class Typed<T = never> {
       return;
     }
     let matchingLetterCount = 0;
-    // eslint-disable-next-line no-constant-condition
+     
     while (true) {
       const currentTextAtIndex = this.getTextAtIndex(this._resultItems, matchingLetterCount);
       const endResultTextAtIndex = this.getTextAtIndex(this._endResultItems, matchingLetterCount);

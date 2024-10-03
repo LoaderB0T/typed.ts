@@ -1,5 +1,6 @@
-import { Typed } from './typed.js';
 import { BehaviorSubject } from 'rxjs';
+
+import { Typed } from './typed.js';
 
 const typedFac = Typed.factory({
   setUp: () => new BehaviorSubject(''),
