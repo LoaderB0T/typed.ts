@@ -2,6 +2,9 @@
   "name": "typed.ts",
   "version": "3.0.2",
   "description": "Realistic typing simulations in TypeScript",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "author": {
     "name": "Janik Schumacher (LoaderB0T)",
     "url": "https://awdware.de"
