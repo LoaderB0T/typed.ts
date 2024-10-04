@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    uses: awdware/dev/.github/workflows/nodejs.yml@nodeversion
+    uses: awdware/dev/.github/workflows/nodejs.yml@main
     secrets: inherit
     with:
       node-versions: '["22.x"]'
