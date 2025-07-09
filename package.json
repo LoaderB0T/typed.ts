@@ -46,7 +46,7 @@
     "@awdware/eslint-config-base": "^2.1.1",
     "@awdware/eslint-config-nodejs": "^2.0.0",
     "@awdware/prettier-config": "^1.0.0",
-    "@jest/globals": "^29.7.0",
+    "@jest/globals": "^30.0.4",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.16.2",
     "eslint": "^9.30.1",
